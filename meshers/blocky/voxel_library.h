@@ -3,6 +3,9 @@
 
 #include "../../util/dynamic_bitset.h"
 #include "voxel.h"
+#include <scene/resources/mesh.h>
+#include "../../constants/cube_tables.h"
+#include "../../util/fixed_array.h"
 #include <core/resource.h>
 
 class VoxelLibrary : public Resource {
@@ -41,6 +44,7 @@ public:
 	void set_atlas_size(int s);
 
 	// Use this factory rather than creating voxels from scratch
+	Ref<Voxel> create_voxel_cube_with_color(unsigned int id, String name, Color color);
 	Ref<Voxel> create_voxel(unsigned int id, String name);
 
 	unsigned int get_voxel_count() const;
