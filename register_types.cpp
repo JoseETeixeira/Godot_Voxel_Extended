@@ -27,6 +27,7 @@
 #include "streams/region/voxel_stream_region_files.h"
 #include "streams/sqlite/voxel_stream_sqlite.h"
 #include "streams/vox_loader.h"
+#include "streams/vox_2_voxel.h"
 #include "streams/voxel_stream_block_files.h"
 #include "streams/voxel_stream_script.h"
 #include "terrain/instancing/voxel_instancer.h"
@@ -111,6 +112,7 @@ void register_voxel_types() {
 	ClassDB::register_class<VoxelToolBuffer>();
 	ClassDB::register_class<VoxelBlockSerializer>();
 	ClassDB::register_class<VoxelVoxLoader>();
+	ClassDB::register_class<Vox2Voxel>();
 	ClassDB::register_class<FastNoiseLite>();
 	ClassDB::register_class<FastNoiseLiteGradient>();
 	// See SCsub

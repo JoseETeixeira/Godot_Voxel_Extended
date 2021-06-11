@@ -66,6 +66,7 @@ nav:
     - api/VoxelToolTerrain.md
     - api/VoxelViewer.md
     - api/VoxelVoxLoader.md
+    - api/Vox2Voxel.md
     # </generated_class_list>
   - 'Serialization formats':
     - 'specs/block_format_v1.md'
