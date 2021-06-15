@@ -88,9 +88,7 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 				ERR_FAIL_COND_V(z >= static_cast<uint32_t>(data->size.z), ERR_PARSE_ERROR);
 				data->color_indexes[Vector3i(x, y, z).get_zxy_index(data->size)] = c;
 				voxx::Vox *voxel = memnew(voxx::Vox());
-				Color8 *color = memnew(Color8());
-				color->from_u32(c);
-				voxel ->color = *color;
+				voxel->color_index = c;
 				voxel->x = x;
 				voxel->y = y;
 				voxel->z = z;
@@ -107,6 +105,7 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 				c.b = f->get_8();
 				c.a = f->get_8();
 				data->palette[i] = c;
+
 			}
 			f->get_32();
 
@@ -115,6 +114,9 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 			f->seek(f->get_position() + chunk_size);
 		}
 	}
+		for(uint32_t i=0;i<data->output.size();i++){
+			data->output[i]->color = data->palette[data->output[i]->color_index];
+		}
 		return OK;
 
 }
