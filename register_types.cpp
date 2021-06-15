@@ -113,6 +113,9 @@ void register_voxel_types() {
 	ClassDB::register_class<VoxelBlockSerializer>();
 	ClassDB::register_class<VoxelVoxLoader>();
 	ClassDB::register_class<Vox2Voxel>();
+	ClassDB::register_class<voxx>();
+	ClassDB::register_class<voxx::Data>();
+	ClassDB::register_class<voxx::Vox>();
 	ClassDB::register_class<FastNoiseLite>();
 	ClassDB::register_class<FastNoiseLiteGradient>();
 	// See SCsub
