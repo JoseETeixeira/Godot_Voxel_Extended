@@ -123,8 +123,13 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 
 void voxx::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_data","i"), &voxx::get_data);
+	ClassDB::bind_method(D_METHOD("get_full_size"), &voxx::get_full_size);
 }
 
+
+void voxx::Data::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_size"), & voxx::Data::get_size);
+}
 
 
 void Vox2Voxel::load_from_file(String fpath) {

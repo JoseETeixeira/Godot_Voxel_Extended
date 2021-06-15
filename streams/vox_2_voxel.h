@@ -32,11 +32,18 @@ class voxx : public Reference {
 				bool has_palette;
 				
 				std::vector<Vox*>output ;
+
+				int get_size(){
+					return output.size();
+				}
+
 			private:
 				static void _bind_methods();
 			};
 
 		Data* dados;
+
+		
 
 
 		Dictionary get_data(int i){
@@ -47,6 +54,10 @@ class voxx : public Reference {
 			retorno["color"] = Color8(dados->output[i]->color).to_u32();
 			
 			return retorno;
+		}
+
+		int get_full_size(){
+			return dados->get_size();
 		}
 
 
