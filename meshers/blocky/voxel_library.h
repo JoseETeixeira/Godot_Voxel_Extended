@@ -44,7 +44,7 @@ public:
 	void set_atlas_size(int s);
 
 	// Use this factory rather than creating voxels from scratch
-	Ref<Voxel> create_voxel_cube_with_color(unsigned int id, String name, Color color);
+	Ref<Voxel> create_voxel_cube_with_color(unsigned int id, String name, Color color, unsigned int material_id);
 	Ref<Voxel> create_voxel(unsigned int id, String name);
 
 	unsigned int get_voxel_count() const;
