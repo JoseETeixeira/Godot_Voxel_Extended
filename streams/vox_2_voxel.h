@@ -6,8 +6,8 @@
 #include "../util/fixed_array.h"
 #include <vector>
 #include <core/reference.h>
-
-
+#include <core/array.h>
+#include <core/dictionary.h>
 
 
 class VoxelBuffer;
@@ -32,9 +32,23 @@ class voxx : public Reference {
 				bool has_palette;
 				
 				std::vector<Vox*>output ;
+			private:
+				static void _bind_methods();
 			};
 
 		Data* dados;
+
+
+		Dictionary get_data(int i){
+			Dictionary retorno;
+			retorno["x"] = dados->output[i]->x;
+			retorno["y"] = dados->output[i]->y;
+			retorno["z"] = dados->output[i]->z;
+			retorno["color"] = Color8(dados->output[i]->color).to_u32();
+			
+			return retorno;
+		}
+
 
 		// TODO Eventually, will need specialized loaders, because data structures may vary and memory shouldn't be wasted
 		Error load_vox(const String &fpath, Data* voxx);

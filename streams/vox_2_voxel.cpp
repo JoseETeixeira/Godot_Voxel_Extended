@@ -1,6 +1,7 @@
 #include "vox_2_voxel.h"
 #include "../storage/voxel_buffer.h"
 #include <core/os/file_access.h>
+#include <core/dictionary.h>
 
 
 Error voxx::load_vox(const String &fpath, voxx::Data* data) {
@@ -116,6 +117,12 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 	}
 		return OK;
 
+}
+
+
+
+void voxx::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_data","i"), &voxx::get_data);
 }
 
 
