@@ -2,11 +2,11 @@
 #include "../storage/voxel_buffer.h"
 #include <core/os/file_access.h>
 
-namespace voxx {
 
-const uint32_t PALETTE_SIZE = 256;
+Error voxx::load_vox(const String &fpath, voxx::Data &data) {
+	const uint32_t PALETTE_SIZE = 256;
 
-uint32_t g_default_palette[PALETTE_SIZE] = {
+	uint32_t g_default_palette[PALETTE_SIZE] = {
 	0x00000000, 0xffffffff, 0xffccffff, 0xff99ffff, 0xff66ffff, 0xff33ffff, 0xff00ffff, 0xffffccff,
 	0xffccccff, 0xff99ccff, 0xff66ccff, 0xff33ccff, 0xff00ccff, 0xffff99ff, 0xffcc99ff, 0xff9999ff,
 	0xff6699ff, 0xff3399ff, 0xff0099ff, 0xffff66ff, 0xffcc66ff, 0xff9966ff, 0xff6666ff, 0xff3366ff,
@@ -39,10 +39,7 @@ uint32_t g_default_palette[PALETTE_SIZE] = {
 	0xff005500, 0xff004400, 0xff002200, 0xff001100, 0xffee0000, 0xffdd0000, 0xffbb0000, 0xffaa0000,
 	0xff880000, 0xff770000, 0xff550000, 0xff440000, 0xff220000, 0xff110000, 0xffeeeeee, 0xffdddddd,
 	0xffbbbbbb, 0xffaaaaaa, 0xff888888, 0xff777777, 0xff555555, 0xff444444, 0xff222222, 0xff111111
-};
-
-Error load_vox(const String &fpath, Data &data) {
-	// https://github.com/ephtracy/voxel-model/blob/master/MagicaVoxel-file-format-vox.txt
+	};
 
 	Error err;
 	FileAccessRef f = FileAccess::open(fpath, FileAccess::READ, &err);
@@ -91,6 +88,14 @@ Error load_vox(const String &fpath, Data &data) {
 				ERR_FAIL_COND_V(y >= static_cast<uint32_t>(data.size.y), ERR_PARSE_ERROR);
 				ERR_FAIL_COND_V(z >= static_cast<uint32_t>(data.size.z), ERR_PARSE_ERROR);
 				data.color_indexes[Vector3i(x, y, z).get_zxy_index(data.size)] = c;
+				voxx::Vox *voxel = memnew(voxx::Vox());
+				Color8 *color = memnew(Color8());
+				color->from_u32(c);
+				voxel ->color = *color;
+				voxel->x = x;
+				voxel->y = y;
+				voxel->z = z;
+				data.output.push_back(voxel);
 			}
 
 		} else if (strcmp(chunk_id, "RGBA") == 0) {
@@ -115,53 +120,14 @@ Error load_vox(const String &fpath, Data &data) {
 	return OK;
 }
 
-} // namespace vox
 
-Error Vox2Voxel::load_from_file(String fpath, Ref<VoxelBuffer> voxels) {
-	ERR_FAIL_COND_V(voxels.is_null(), ERR_INVALID_PARAMETER);
+void Vox2Voxel::load_from_file(String fpath) {
 
-	const Error err = voxx::load_vox(fpath, _data);
-	ERR_FAIL_COND_V(err != OK, err);
+	Error err = voxx::load_vox(fpath, _data);
 
-	const VoxelBuffer::ChannelId channel = VoxelBuffer::CHANNEL_TYPE;
-
-	const ArraySlice<Color8> src_palette =
-			_data.has_palette ?
-					ArraySlice<Color8>(_data.palette) :
-					ArraySlice<Color8>(reinterpret_cast<Color8 *>(voxx::g_default_palette), 0, voxx::PALETTE_SIZE);
-
-	const VoxelBuffer::Depth depth = voxels->get_channel_depth(VoxelBuffer::CHANNEL_TYPE);
-
-	ArraySlice<uint8_t> dst_raw;
-	voxels->create(_data.size);
-	voxels->decompress_channel(channel);
-	CRASH_COND(!voxels->get_channel_raw(channel, dst_raw));
-
-
-	switch (depth) {
-		case VoxelBuffer::DEPTH_8_BIT: {
-			for (size_t i = 0; i < dst_raw.size(); ++i) {
-				const uint8_t ci = _data.color_indexes[i];
-				dst_raw[i] = src_palette[ci].to_u8();
-			}
-		} break;
-
-		case VoxelBuffer::DEPTH_16_BIT: {
-			ArraySlice<uint16_t> dst = dst_raw.reinterpret_cast_to<uint16_t>();
-			for (size_t i = 0; i < dst.size(); ++i) {
-				const uint8_t ci = _data.color_indexes[i];
-				dst[i] = src_palette[ci].to_u16();
-			}
-		} break;
-
-		default:
-			ERR_FAIL_V_MSG(ERR_INVALID_PARAMETER, "Unsupported depth");
-			break;
-	}
-
-	return err;
 }
 
 void Vox2Voxel::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("load_from_file", "fpath", "voxels"), &Vox2Voxel::load_from_file);
+	ClassDB::bind_method(D_METHOD("load_from_file", "fpath"), &Vox2Voxel::load_from_file);
+	ClassDB::bind_method(D_METHOD("get_data"), &Vox2Voxel::get_data);
 }

@@ -1,19 +1,33 @@
 #ifndef VOX_2_VOXEL_H
 #define VOX_2_VOXEL_H
 
-#include "../meshers/cubes/voxel_color_palette.h"
 #include "../util/math/vector3i.h"
+#include "../util/math/color8.h"
+#include "../util/fixed_array.h"
 #include <vector>
+#include <core/reference.h>
+
+
+
 
 class VoxelBuffer;
 
 namespace voxx {
-
-struct Data {
+struct Vox : Dictionary{
+		int x;
+		int y;
+		int z;
+		Color8 color;
+};
+struct Data : Dictionary{
 	Vector3i size;
 	std::vector<uint8_t> color_indexes;
 	FixedArray<Color8, 256> palette;
 	bool has_palette;
+	
+	std::vector<Vox*>output ;
+
+	
 };
 
 // TODO Eventually, will need specialized loaders, because data structures may vary and memory shouldn't be wasted
@@ -26,7 +40,11 @@ class Vox2Voxel : public Reference {
 	GDCLASS(Vox2Voxel, Reference);
 
 public:
-	Error load_from_file(String fpath, Ref<VoxelBuffer> voxels);
+	void load_from_file(String fpath);	
+
+	Variant get_data(){
+		return Variant(&_data);
+	}
 	// TODO Have chunked loading for better memory usage
 	// TODO Saving
 
