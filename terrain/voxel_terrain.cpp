@@ -1239,6 +1239,43 @@ void VoxelTerrain::set_run_stream_in_editor(bool enable) {
 	}
 }
 
+Array VoxelTerrain::get_mesh_block_surface(Vector3i block_pos, int lod_index = 0) const {
+	VOXEL_PROFILE_SCOPE();
+	ERR_FAIL_COND_V(lod_index >= static_cast<int>(0), Array());
+	const Lod &lod = _lods[0];
+	const VoxelMeshBlock *block = lod.mesh_map.get_block(block_pos);
+	if (block != nullptr) {
+		Ref<Mesh> mesh = block->get_mesh();
+		if (mesh.is_valid()) {
+			return mesh->surface_get_arrays(0);
+		}
+	}
+	return Array();
+}
+
+void VoxelTerrain::set_instancer(VoxelInstancerBlocky *instancer) {
+	if (_instancer != nullptr && instancer != nullptr) {
+		ERR_FAIL_COND_MSG(_instancer != nullptr, "No more than one VoxelInstancer per terrain");
+	}
+	_instancer = instancer;
+}
+
+int VoxelTerrain::get_mesh_block_region_extent() const {
+	return VoxelServer::get_octree_lod_block_region_extent(0, get_mesh_block_size());
+}
+
+Vector<Vector3i> VoxelTerrain::get_meshed_block_positions_at_lod(int lod_index = 0) const {
+	Vector<Vector3i> positions;
+	ERR_FAIL_COND_V(lod_index >= static_cast<int>(0), positions);
+	const Lod &lod = _lods[lod_index];
+	lod.mesh_map.for_all_blocks([&positions](const VoxelMeshBlock *block) {
+		if (block->has_mesh()) {
+			positions.push_back(block->position);
+		}
+	});
+	return positions;
+}
+
 bool VoxelTerrain::is_stream_running_in_editor() const {
 	return _run_stream_in_editor;
 }

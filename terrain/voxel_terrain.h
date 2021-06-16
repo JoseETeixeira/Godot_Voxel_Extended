@@ -9,6 +9,7 @@
 #include <scene/3d/spatial.h>
 
 class VoxelTool;
+class VoxelInstancerBlocky;
 
 // Infinite paged terrain made of voxel blocks all with the same level of detail.
 // Voxels are polygonized around the viewer by distance in a large cubic space.
@@ -73,6 +74,12 @@ public:
 
 	void restart_stream() override;
 	void remesh_all_blocks() override;
+
+	void set_instancer(VoxelInstancerBlocky *instancer);
+	int get_mesh_block_region_extent() const;
+	Vector<Vector3i> get_meshed_block_positions_at_lod(int lod_index) const;
+	Array get_mesh_block_surface(Vector3i block_pos, int lod_index) const;
+	uint32_t get_volume_id() const { return _volume_id; }
 
 	// For convenience, this is actually stored in a particular type of mesher
 	Ref<VoxelLibrary> get_voxel_library() const;
@@ -162,6 +169,31 @@ private:
 		State state;
 		State prev_state;
 	};
+
+
+	struct Lod {
+		VoxelDataMap data_map;
+		Set<Vector3i> loading_blocks;
+		// Blocks that were edited and need their LOD counterparts to be updated
+		std::vector<Vector3i> blocks_pending_lodding;
+		// These are relative to this LOD, in block coordinates
+		Vector3i last_viewer_data_block_pos;
+		int last_view_distance_data_blocks = 0;
+
+		VoxelMeshMap mesh_map;
+		std::vector<Vector3i> blocks_pending_update;
+		std::vector<Vector3i> deferred_collision_updates;
+		Map<Vector3i, VoxelMeshBlock *> fading_blocks;
+		Vector3i last_viewer_mesh_block_pos;
+		int last_view_distance_mesh_blocks = 0;
+
+		// Members for memory caching
+		std::vector<Vector3i> blocks_to_load;
+	};
+
+	FixedArray<Lod, VoxelConstants::MAX_LOD> _lods;
+
+	VoxelInstancerBlocky *_instancer = nullptr;
 
 	std::vector<PairedViewer> _paired_viewers;
 

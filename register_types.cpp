@@ -31,6 +31,7 @@
 #include "streams/voxel_stream_block_files.h"
 #include "streams/voxel_stream_script.h"
 #include "terrain/instancing/voxel_instancer.h"
+#include "terrain/instancing/voxel_instancer_blocky.h"
 #include "terrain/voxel_box_mover.h"
 #include "terrain/voxel_lod_terrain.h"
 #include "terrain/voxel_mesh_block.h"
@@ -82,6 +83,7 @@ void register_voxel_types() {
 	ClassDB::register_class<VoxelViewer>();
 	ClassDB::register_class<VoxelInstanceGenerator>();
 	ClassDB::register_class<VoxelInstancer>();
+	ClassDB::register_class<VoxelInstancerBlocky>();
 
 	// Streams
 	ClassDB::register_virtual_class<VoxelStream>();

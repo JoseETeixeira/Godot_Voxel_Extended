@@ -28,6 +28,7 @@ def get_doc_classes():
     "VoxelLodTerrain",
     "VoxelViewer",
     "VoxelInstancer",
+    "VoxelInstancerBlocky",
 
     "VoxelStream",
     "VoxelStreamFile",
