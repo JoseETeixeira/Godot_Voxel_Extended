@@ -44,66 +44,38 @@ void VoxelToolTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<Func
 	const int bs_mask = map.get_block_size_mask();
 	const VoxelBuffer::ChannelId channel = VoxelBuffer::CHANNEL_TYPE;
 
-	struct Pick {
-		uint64_t value;
-		Vector3i rpos;
-	};
-	std::vector<Pick> picks;
-	picks.resize(max_pos.x * max_pos.y * max_pos.z);
 
-	// Choose blocks at random
-	for (int bi = 0; bi < max_pos.x * max_pos.y * max_pos.z; ++bi) {
-		const Vector3i block_pos = min_block_pos + Vector3i(
-														   Math::rand() % block_area_size.x,
-														   Math::rand() % block_area_size.y,
-														   Math::rand() % block_area_size.z);
+	for (int i = min_block_pos.x; i < max_block_pos.x; ++i) {
+		for (int j = min_block_pos.y; i < max_block_pos.y; ++j) {
+			for (int k = min_block_pos.z; i < max_block_pos.z; ++k) {
+				const Vector3i block_origin = map.block_to_voxel(Vector3i(i,j,k));
 
-		const Vector3i block_origin = map.block_to_voxel(block_pos);
+				const VoxelDataBlock *block = map.get_block(Vector3i(i,j,k));
+				if (block != nullptr) {
+					// Doing ONLY reads here.
+					{
+						RWLockRead lock(block->voxels->get_lock());
 
-		const VoxelDataBlock *block = map.get_block(block_pos);
-		if (block != nullptr) {
-			// Doing ONLY reads here.
-			{
-				RWLockRead lock(block->voxels->get_lock());
-
-				if (block->voxels->get_channel_compression(channel) == VoxelBuffer::COMPRESSION_UNIFORM) {
-					const uint64_t v = block->voxels->get_voxel(0, 0, 0, channel);
-					if (lib.has_voxel(v)) {
-						const Voxel &vt = lib.get_voxel_const(v);
-						if (!vt.is_random_tickable()) {
-							// Skip whole block
-							continue;
+						if (block->voxels->get_channel_compression(channel) == VoxelBuffer::COMPRESSION_UNIFORM) {
+							const uint64_t v = block->voxels->get_voxel(0, 0, 0, channel);
+							if (lib.has_voxel(v)) {
+								const Voxel &vt = lib.get_voxel_const(v);
+								if (!vt.is_random_tickable()) {
+									// Skip whole block
+									continue;
+								}
+							}
 						}
+
+						// Choose a bunch of voxels at random within the block.
+						// Batching this way improves performance a little by reducing block lookups.
+						
 					}
-				}
-
-				// Choose a bunch of voxels at random within the block.
-				// Batching this way improves performance a little by reducing block lookups.
-				for (int i = 0; i < max_block_pos.x; ++i) {
-					for (int j = 0; i < max_block_pos.y; ++j) {
-						for (int k = 0; i < max_block_pos.z; ++k) {
-							const Vector3i rpos(i,j,k);
-
-							const uint64_t v = block->voxels->get_voxel(rpos, channel);
-							picks[i*j*k] = Pick{ v, rpos };
-						}
-					}
-					
-				}
-			}
-
-			// The following may or may not read AND write voxels randomly due to its exposition to scripts.
-			// However, we don't send the buffer directly, so it will go through an API taking care of locking.
-			// So we don't (and shouldn't) lock anything here.
-			for (size_t i = 0; i < picks.size(); ++i) {
-				const Pick pick = picks[i];
-
-				if (lib.has_voxel(pick.value)) {
-					const Voxel &vt = lib.get_voxel_const(pick.value);
-
-					if (vt.is_random_tickable()) {
-						const Variant vpos = (pick.rpos + block_origin).to_vec3();
-						const Variant vv = pick.value;
+					const Vector3i rpos(i,j,k);
+					if(block->voxels->get_voxel_metadata(rpos)!=Variant()){
+						const uint64_t v = block->voxels->get_voxel(rpos, channel);
+						const Variant vpos = (rpos + block_origin).to_vec3();
+						const Variant vv = v;
 						const Variant *args[1];
 						args[0] = &vpos;
 						args[1] = &vv;
@@ -112,12 +84,16 @@ void VoxelToolTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<Func
 						// TODO I would really like to know what's the correct way to report such errors...
 						// Examples I found in the engine are inconsistent
 						ERR_FAIL_COND(error.error != Variant::CallError::CALL_OK);
-						// Return if it fails, we don't want an error spam
 					}
 				}
+
+				
+	
 			}
 		}
+		
 	}
+	
 
 }
 
