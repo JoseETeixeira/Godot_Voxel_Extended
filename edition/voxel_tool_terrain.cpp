@@ -22,6 +22,105 @@ bool VoxelToolTerrain::is_area_editable(const Rect3i &box) const {
 	return _terrain->get_storage().is_area_fully_loaded(box.padded(1));
 }
 
+void VoxelToolTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<FuncRef> callback)const{
+	VOXEL_PROFILE_SCOPE();
+
+	ERR_FAIL_COND(_terrain == nullptr);
+	ERR_FAIL_COND_MSG(_terrain->get_voxel_library().is_null(),
+			"This function requires a volume using VoxelMesherBlocky");
+	ERR_FAIL_COND(callback.is_null());
+
+	const VoxelLibrary &lib = **_terrain->get_voxel_library();
+
+	const Vector3i min_pos = Vector3i(voxel_area.position);
+	const Vector3i max_pos = min_pos + Vector3i(voxel_area.size);
+
+	const VoxelDataMap &map = _terrain->get_storage();
+
+	const Vector3i min_block_pos = map.voxel_to_block(min_pos);
+	const Vector3i max_block_pos = map.voxel_to_block(max_pos);
+	const Vector3i block_area_size = max_block_pos - min_block_pos;
+
+	const int bs_mask = map.get_block_size_mask();
+	const VoxelBuffer::ChannelId channel = VoxelBuffer::CHANNEL_TYPE;
+
+	struct Pick {
+		uint64_t value;
+		Vector3i rpos;
+	};
+	std::vector<Pick> picks;
+	picks.resize(max_pos.x * max_pos.y * max_pos.z);
+
+	// Choose blocks at random
+	for (int bi = 0; bi < max_pos.x * max_pos.y * max_pos.z; ++bi) {
+		const Vector3i block_pos = min_block_pos + Vector3i(
+														   Math::rand() % block_area_size.x,
+														   Math::rand() % block_area_size.y,
+														   Math::rand() % block_area_size.z);
+
+		const Vector3i block_origin = map.block_to_voxel(block_pos);
+
+		const VoxelDataBlock *block = map.get_block(block_pos);
+		if (block != nullptr) {
+			// Doing ONLY reads here.
+			{
+				RWLockRead lock(block->voxels->get_lock());
+
+				if (block->voxels->get_channel_compression(channel) == VoxelBuffer::COMPRESSION_UNIFORM) {
+					const uint64_t v = block->voxels->get_voxel(0, 0, 0, channel);
+					if (lib.has_voxel(v)) {
+						const Voxel &vt = lib.get_voxel_const(v);
+						if (!vt.is_random_tickable()) {
+							// Skip whole block
+							continue;
+						}
+					}
+				}
+
+				// Choose a bunch of voxels at random within the block.
+				// Batching this way improves performance a little by reducing block lookups.
+				for (int i = 0; i < max_block_pos.x; ++i) {
+					for (int j = 0; i < max_block_pos.y; ++j) {
+						for (int k = 0; i < max_block_pos.z; ++k) {
+							const Vector3i rpos(i,j,k);
+
+							const uint64_t v = block->voxels->get_voxel(rpos, channel);
+							picks[i*j*k] = Pick{ v, rpos };
+						}
+					}
+					
+				}
+			}
+
+			// The following may or may not read AND write voxels randomly due to its exposition to scripts.
+			// However, we don't send the buffer directly, so it will go through an API taking care of locking.
+			// So we don't (and shouldn't) lock anything here.
+			for (size_t i = 0; i < picks.size(); ++i) {
+				const Pick pick = picks[i];
+
+				if (lib.has_voxel(pick.value)) {
+					const Voxel &vt = lib.get_voxel_const(pick.value);
+
+					if (vt.is_random_tickable()) {
+						const Variant vpos = (pick.rpos + block_origin).to_vec3();
+						const Variant vv = pick.value;
+						const Variant *args[1];
+						args[0] = &vpos;
+						args[1] = &vv;
+						Variant::CallError error;
+						callback->call_func(args, 1, error);
+						// TODO I would really like to know what's the correct way to report such errors...
+						// Examples I found in the engine are inconsistent
+						ERR_FAIL_COND(error.error != Variant::CallError::CALL_OK);
+						// Return if it fails, we don't want an error spam
+					}
+				}
+			}
+		}
+	}
+
+}
+
 Ref<VoxelRaycastResult> VoxelToolTerrain::raycast(Vector3 p_pos, Vector3 p_dir, float p_max_distance, uint32_t p_collision_mask) {
 	// TODO Transform input if the terrain is rotated
 	// TODO Implement broad-phase on blocks to minimize locking and increase performance
@@ -303,4 +402,6 @@ void VoxelToolTerrain::run_blocky_random_tick(AABB voxel_area, int voxel_count, 
 void VoxelToolTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("run_blocky_random_tick", "area", "voxel_count", "callback", "batch_count"),
 			&VoxelToolTerrain::run_blocky_random_tick, DEFVAL(16));
+	ClassDB::bind_method(D_METHOD("for_each_voxel_metadata_in_area", "area", "callback"),
+			&VoxelToolTerrain::for_each_voxel_metadata_in_area, DEFVAL(16));
 }
