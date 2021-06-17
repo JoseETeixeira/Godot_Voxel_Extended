@@ -9,6 +9,7 @@
 #include <scene/3d/spatial.h>
 
 class VoxelTool;
+class MultiMesh;
 
 // Infinite paged terrain made of voxel blocks all with the same level of detail.
 // Voxels are polygonized around the viewer by distance in a large cubic space.
@@ -90,7 +91,6 @@ public:
 	};
 
 	const Stats &get_stats() const;
-
 	struct BlockToSave {
 		Ref<VoxelBuffer> voxels;
 		Vector3i position;

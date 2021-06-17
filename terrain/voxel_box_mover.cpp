@@ -1,7 +1,10 @@
 #include "voxel_box_mover.h"
 #include "../meshers/blocky/voxel_mesher_blocky.h"
 #include "../meshers/cubes/voxel_mesher_cubes.h"
+#include <scene/3d/collision_shape.h>
+#include <scene/3d/mesh_instance.h>
 #include "../util/godot/funcs.h"
+#include <vector>
 
 static AABB expand_with_vector(AABB box, Vector3 v) {
 	if (v.x > 0) {
@@ -178,10 +181,12 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 							world_box.position += i.to_vec3();
 							potential_boxes.push_back(world_box);
 						}
+						
 					}
 				}
 			}
 		}
+		
 
 	} else if (try_get_as(p_terrain->get_mesher(), mesher_cubes)) {
 		const int channel = VoxelBuffer::CHANNEL_COLOR;
@@ -195,6 +200,22 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 					}
 				}
 			}
+		}
+	}
+	if(p_terrain->get_child_count()>0){
+		Array children =p_terrain->get_children();
+		for (int it = 0; it < p_terrain->get_child_count(); it++) {
+			Object *obj = children[it];
+			MeshInstance *mi = Object::cast_to<MeshInstance>(obj);
+			if(mi != nullptr) {
+				const Vector3 posicao = to_local.xform(p_pos);
+				//TODO: find a way to get the aabb size in blocks
+				AABB aa = mi->get_aabb();
+				float unitary_size = aa.size.x / 16;
+				Vector3 size = Vector3(unitary_size,unitary_size,unitary_size);
+				potential_boxes.push_back(AABB(aa.position+posicao, size));
+			}
+			
 		}
 	}
 
