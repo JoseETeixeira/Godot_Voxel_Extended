@@ -9,6 +9,7 @@
 #include <scene/3d/spatial.h>
 
 class VoxelTool;
+class Node;
 class MultiMesh;
 
 // Infinite paged terrain made of voxel blocks all with the same level of detail.
