@@ -35,6 +35,7 @@
 #include "terrain/voxel_mesh_block.h"
 #include "terrain/voxel_terrain.h"
 #include "terrain/voxel_viewer.h"
+#include "streams/vox_2_voxel.h"
 #include "util/macros.h"
 #ifdef VOXEL_FAST_NOISE_2_SUPPORT
 #include "util/noise/fast_noise_2.h"
@@ -111,6 +112,7 @@ void register_voxel_types() {
 	ClassDB::register_class<VoxelToolBuffer>();
 	ClassDB::register_class<VoxelBlockSerializer>();
 	ClassDB::register_class<VoxelVoxLoader>();
+	ClassDB::register_class<Vox2Voxel>();
 	ClassDB::register_class<FastNoiseLite>();
 	ClassDB::register_class<FastNoiseLiteGradient>();
 	// See SCsub
