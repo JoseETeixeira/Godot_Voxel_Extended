@@ -211,7 +211,7 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 			if(mi != nullptr) {
 				AABB mesh_box = mi->get_aabb();
 				mesh_box.set_size(Vector3(mesh_box.get_size()*mi->get_scale()));
-				mesh_box.position = Vector3(to_local.xform(mi->get_translation())-Vector3(1,0,0));
+				mesh_box.position = Vector3(to_local.xform(mi->get_transform().get_origin())+Vector3(-1,0,-1));
 				potential_boxes.push_back(mesh_box);
 			}
 
