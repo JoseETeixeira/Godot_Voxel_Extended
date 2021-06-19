@@ -213,7 +213,7 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 					Object *mio = sb->get_child(sbc);
 					MeshInstance *mi = Object::cast_to<MeshInstance>(mio);
 					if(mi != nullptr) {
-						potential_boxes.push_back(AABB(to_local.xform(Vector3(sb->get_transform().get_origin()))+Vector3(-sbc,-sbc,-sbc), Vector3(sbc+1,sbc+1,sbc+1)));
+						potential_boxes.push_back(AABB(to_local.xform(Vector3(sb->get_transform().get_origin()))+Vector3(-1+sbc,sbc,-1+sbc), Vector3(1+sb->get_child_count(),1,1+sb->get_child_count())));
 					}
 				}
 
