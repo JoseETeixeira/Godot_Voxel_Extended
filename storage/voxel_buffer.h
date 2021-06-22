@@ -123,6 +123,7 @@ public:
 
 	void fill(uint64_t defval, unsigned int channel_index = 0);
 	void fill_area(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index = 0);
+	void set_voxels_in_line(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index = 0);
 	void fill_area_f(float fvalue, Vector3i min, Vector3i max, unsigned int channel_index);
 	void fill_f(real_t value, unsigned int channel = 0);
 
@@ -448,6 +449,7 @@ private:
 	void _b_copy_channel_from(Ref<VoxelBuffer> other, unsigned int channel);
 	void _b_copy_channel_from_area(Ref<VoxelBuffer> other, Vector3 src_min, Vector3 src_max, Vector3 dst_min, unsigned int channel);
 	void _b_fill_area(uint64_t defval, Vector3 min, Vector3 max, unsigned int channel_index) { fill_area(defval, Vector3i(min), Vector3i(max), channel_index); }
+	void _b_set_voxels_in_line(uint64_t defval, Vector3 min, Vector3 max, unsigned int channel_index) { set_voxels_in_line(defval, Vector3i(min), Vector3i(max), channel_index); }
 	void _b_set_voxel_f(real_t value, int x, int y, int z, unsigned int channel) { set_voxel_f(value, x, y, z, channel); }
 	void _b_set_voxel_v(uint64_t value, Vector3 pos, unsigned int channel_index = 0) { set_voxel(value, pos.x, pos.y, pos.z, channel_index); }
 	void _b_downscale_to(Ref<VoxelBuffer> dst, Vector3 src_min, Vector3 src_max, Vector3 dst_min) const;
