@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="VoxelGeneratorGraph" inherits="VoxelGenerator" version="3.2">
+<class name="VoxelGeneratorGraph" inherits="VoxelGenerator" version="3.4">
 	<brief_description>
 		Graph-based generator for smooth voxel worlds.
 	</brief_description>
 	<description>
-		Generates SDF voxel data from a graph of operations.
+		Generates SDF voxel data from a graph of per-voxel operations.
+		The graph must be created, compiled, and only then blocks can be generated.
 		Warning: methods to modify the graph should only be called from the main thread.
 	</description>
 	<tutorials>
@@ -62,18 +63,36 @@
 			<argument index="3" name="dst_port_index" type="int">
 			</argument>
 			<description>
+				Tests if two ports can be connected together.
 			</description>
 		</method>
 		<method name="clear">
 			<return type="void">
 			</return>
 			<description>
+				Erases all nodes and connections from the graph.
 			</description>
 		</method>
 		<method name="compile">
 			<return type="Dictionary">
 			</return>
 			<description>
+				Compiles the graph so it can be used to generate blocks.
+				If it succeeds, the returned result is a dictionary with the following layout:
+				[codeblock]
+				{
+					"success": true
+				}
+				[/codeblock]
+				If it fails, the returned result may contain a message and the ID of a graph node that could be the cause:
+				[codeblock]
+				{
+					"success": false,
+					"node_id": int,
+					"message": String
+				}
+				[/codeblock]
+				The node ID will be -1 if the error is not about a particular node.
 			</description>
 		</method>
 		<method name="create_node">
@@ -84,6 +103,19 @@
 			<argument index="1" name="position" type="Vector2">
 			</argument>
 			<argument index="2" name="id" type="int" default="0">
+			</argument>
+			<description>
+				Creates a graph node of a given type at a specific visual position. That position does not affect how the graph will perform, however it helps organizing nodes.
+				An optional ID can be specified. If left to 0, the ID will be generated.
+				This function then returns the ID of the node, which may be useful to modify other properties of the node later.
+			</description>
+		</method>
+		<method name="debug_analyze_range" qualifiers="const">
+			<return type="Vector2">
+			</return>
+			<argument index="0" name="min_pos" type="Vector3">
+			</argument>
+			<argument index="1" name="max_pos" type="Vector3">
 			</argument>
 			<description>
 			</description>
@@ -247,6 +279,20 @@
 			</description>
 		</method>
 	</methods>
+	<members>
+		<member name="debug_block_clipping" type="bool" setter="set_debug_clipped_blocks" getter="is_debug_clipped_blocks" default="false">
+		</member>
+		<member name="sdf_clip_threshold" type="float" setter="set_sdf_clip_threshold" getter="get_sdf_clip_threshold" default="1.5">
+		</member>
+		<member name="subdivision_size" type="int" setter="set_subdivision_size" getter="get_subdivision_size" default="16">
+		</member>
+		<member name="use_optimized_execution_map" type="bool" setter="set_use_optimized_execution_map" getter="is_using_optimized_execution_map" default="true">
+		</member>
+		<member name="use_subdivision" type="bool" setter="set_use_subdivision" getter="is_using_subdivision" default="true">
+		</member>
+		<member name="use_xz_caching" type="bool" setter="set_use_xz_caching" getter="is_using_xz_caching" default="true">
+		</member>
+	</members>
 	<signals>
 		<signal name="node_name_changed">
 			<argument index="0" name="node_id" type="int">
@@ -324,17 +370,25 @@
 		</constant>
 		<constant name="NODE_SDF_PREVIEW" value="33" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_NORMALIZE_3D" value="35" enum="NodeTypeID">
+		<constant name="NODE_SDF_SPHERE_HEIGHTMAP" value="34" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_FAST_NOISE_2D" value="36" enum="NodeTypeID">
+		<constant name="NODE_SDF_SMOOTH_UNION" value="35" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_FAST_NOISE_3D" value="37" enum="NodeTypeID">
+		<constant name="NODE_SDF_SMOOTH_SUBTRACT" value="36" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_FAST_NOISE_GRADIENT_2D" value="38" enum="NodeTypeID">
+		<constant name="NODE_NORMALIZE_3D" value="37" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_FAST_NOISE_GRADIENT_3D" value="39" enum="NodeTypeID">
+		<constant name="NODE_FAST_NOISE_2D" value="38" enum="NodeTypeID">
 		</constant>
-		<constant name="NODE_TYPE_COUNT" value="40" enum="NodeTypeID">
+		<constant name="NODE_FAST_NOISE_3D" value="39" enum="NodeTypeID">
+		</constant>
+		<constant name="NODE_FAST_NOISE_GRADIENT_2D" value="40" enum="NodeTypeID">
+		</constant>
+		<constant name="NODE_FAST_NOISE_GRADIENT_3D" value="41" enum="NodeTypeID">
+		</constant>
+		<constant name="NODE_OUTPUT_WEIGHT" value="42" enum="NodeTypeID">
+		</constant>
+		<constant name="NODE_TYPE_COUNT" value="43" enum="NodeTypeID">
 		</constant>
 	</constants>
 </class>

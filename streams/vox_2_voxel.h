@@ -22,7 +22,7 @@ class voxx : public Reference {
 				int y;
 				int z;
 				Color8 color;
-				int color_index;
+				unsigned int color_index;
 		};
 		class Data : public Reference {
 			GDCLASS(Data, Reference);

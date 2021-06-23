@@ -1,6 +1,7 @@
 #ifndef VOXEL_VECTOR3I_H
 #define VOXEL_VECTOR3I_H
 
+#include "../funcs.h"
 #include "funcs.h"
 #include <core/hashfuncs.h>
 #include <core/math/vector3.h>
@@ -115,6 +116,7 @@ struct Vector3i {
 		return coords[i];
 	}
 
+	// TODO Change this to be consistent with `::clamp`
 	// Clamps between min and max, where max is excluded
 	void clamp_to(const Vector3i min, const Vector3i max) {
 		if (x < min.x) {
@@ -144,9 +146,9 @@ struct Vector3i {
 	}
 
 	static void sort_min_max(Vector3i &a, Vector3i &b) {
-		::sort_min_max(a.x, b.x);
-		::sort_min_max(a.y, b.y);
-		::sort_min_max(a.z, b.z);
+		::sort(a.x, b.x);
+		::sort(a.y, b.y);
+		::sort(a.z, b.z);
 	}
 
 	inline Vector3i udiv(const Vector3i d) const {

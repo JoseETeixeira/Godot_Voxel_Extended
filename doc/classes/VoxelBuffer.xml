@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="VoxelBuffer" inherits="Reference" version="3.2">
+<class name="VoxelBuffer" inherits="Reference" version="3.4">
 	<brief_description>
 		3D grid storing voxel data.
 	</brief_description>
@@ -63,6 +63,7 @@
 				Copies values from a channel's sub-region of another [VoxelBuffer] into the same channel for the current buffer, at a specific location. The depth formats must match.
 				If corners of the area represent a negative-size area, they will be sorted back.
 				If coordinates are entirely or partially out of bounds, they will be clipped automatically.
+				Copying across the same buffer to overlapping areas is not supported. You may use an intermediary buffer in this case.
 			</description>
 		</method>
 		<method name="copy_voxel_metadata_in_area">
@@ -80,6 +81,7 @@
 				Copies per-voxel metadata from a sub-region of another [VoxelBuffer] into the the current buffer, at a specific location. Values will be a shallow copy.
 				If corners of the area represent a negative-size area, they will be sorted back.
 				If coordinates are entirely or partially out of bounds, they will be clipped automatically.
+				Copying across the same buffer to overlapping areas is not supported. You may use an intermediary buffer in this case.
 			</description>
 		</method>
 		<method name="create">
@@ -374,11 +376,9 @@
 		<constant name="CHANNEL_COLOR" value="2" enum="ChannelId">
 			Channel used to store color data. Used by [VoxelMesherCubes].
 		</constant>
-		<constant name="CHANNEL_DATA3" value="3" enum="ChannelId">
-			Free channel. Not used by the engine yet.
+		<constant name="CHANNEL_INDICES" value="3" enum="ChannelId">
 		</constant>
-		<constant name="CHANNEL_DATA4" value="4" enum="ChannelId">
-			Free channel. Not used by the engine yet.
+		<constant name="CHANNEL_WEIGHTS" value="4" enum="ChannelId">
 		</constant>
 		<constant name="CHANNEL_DATA5" value="5" enum="ChannelId">
 			Free channel. Not used by the engine yet.

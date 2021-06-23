@@ -20,7 +20,6 @@
 template <typename T>
 inline T interpolate(const T v0, const T v1, const T v2, const T v3, const T v4, const T v5, const T v6, const T v7,
 		Vector3 position) {
-
 	const float one_min_x = 1.f - position.x;
 	const float one_min_y = 1.f - position.y;
 	const float one_min_z = 1.f - position.z;
@@ -76,11 +75,11 @@ inline T max(const T a, const T b, const T c, const T d, const T e, const T f, c
 
 template <typename T>
 inline T clamp(const T x, const T min_value, const T max_value) {
-	// TODO Clang can optimize a min/max implementation. Worth changing to that?
+	// TODO Optimization: clang can optimize a min/max implementation. Worth changing to that?
 	if (x < min_value) {
 		return min_value;
 	}
-	if (x >= max_value) {
+	if (x > max_value) {
 		return max_value;
 	}
 	return x;
@@ -89,15 +88,6 @@ inline T clamp(const T x, const T min_value, const T max_value) {
 template <typename T>
 inline T squared(const T x) {
 	return x * x;
-}
-
-template <typename T>
-inline void sort_min_max(T &a, T &b) {
-	if (a > b) {
-		T temp = a;
-		a = b;
-		b = temp;
-	}
 }
 
 // TODO Rename udiv => floordiv
@@ -163,5 +153,9 @@ inline float fract(float x) {
 inline Vector3 fract(const Vector3 &p) {
 	return Vector3(fract(p.x), fract(p.y), fract(p.z));
 }
+
+// inline bool is_power_of_two(int i) {
+// 	return i & (i - 1);
+// }
 
 #endif // VOXEL_MATH_FUNCS_H

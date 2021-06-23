@@ -1,26 +1,11 @@
 #ifndef VOXEL_TOOL_H
 #define VOXEL_TOOL_H
 
-#include "../util/math/rect3i.h"
-#include <core/reference.h>
+#include "../util/math/box3i.h"
+#include "funcs.h"
+#include "voxel_raycast_result.h"
 
 class VoxelBuffer;
-
-// This class exists only to make the script API nicer.
-class VoxelRaycastResult : public Reference {
-	GDCLASS(VoxelRaycastResult, Reference)
-public:
-	Vector3i position;
-	Vector3i previous_position;
-	float distance_along_ray;
-
-private:
-	Vector3 _b_get_position() const;
-	Vector3 _b_get_previous_position() const;
-	float _b_get_distance() const;
-
-	static void _bind_methods();
-};
 
 // TODO Need to review VoxelTool to account for transformed volumes
 
@@ -33,7 +18,8 @@ public:
 	enum Mode {
 		MODE_ADD,
 		MODE_REMOVE,
-		MODE_SET
+		MODE_SET,
+		MODE_TEXTURE_PAINT
 	};
 
 	VoxelTool();
@@ -56,6 +42,15 @@ public:
 	float get_sdf_scale() const;
 	void set_sdf_scale(float s);
 
+	void set_texture_index(int ti);
+	int get_texture_index() const;
+
+	void set_texture_opacity(float opacity);
+	float get_texture_opacity() const;
+
+	void set_texture_falloff(float falloff);
+	float get_texture_falloff() const;
+
 	// TODO Methods working on a whole area must use an implementation that minimizes locking!
 
 	// The following methods represent one edit each. Pick the correct one for the job.
@@ -74,7 +69,7 @@ public:
 	virtual Ref<VoxelRaycastResult> raycast(Vector3 pos, Vector3 dir, float max_distance, uint32_t collision_mask);
 
 	// Checks if an edit affecting the given box can be applied, fully or partially
-	virtual bool is_area_editable(const Rect3i &box) const;
+	virtual bool is_area_editable(const Box3i &box) const;
 
 	virtual void set_voxel_metadata(Vector3i pos, Variant meta);
 	virtual Variant get_voxel_metadata(Vector3i pos);
@@ -88,7 +83,7 @@ protected:
 	virtual float _get_voxel_f(Vector3i pos) const;
 	virtual void _set_voxel(Vector3i pos, uint64_t v);
 	virtual void _set_voxel_f(Vector3i pos, float v);
-	virtual void _post_edit(const Rect3i &box);
+	virtual void _post_edit(const Box3i &box);
 
 private:
 	// Bindings to convert to more specialized C++ types and handle virtuality,
@@ -139,7 +134,7 @@ private:
 	}
 
 	bool _b_is_area_editable(AABB box) {
-		return is_area_editable(Rect3i(Vector3i::from_floored(box.position), Vector3i::from_floored(box.size)));
+		return is_area_editable(Box3i(Vector3i::from_floored(box.position), Vector3i::from_floored(box.size)));
 	}
 
 protected:
@@ -148,6 +143,38 @@ protected:
 	int _channel = 0;
 	float _sdf_scale = 1.f;
 	Mode _mode = MODE_ADD;
+
+	struct TextureParams {
+		float opacity = 1.f;
+		float sharpness = 2.f;
+		unsigned int index = 0;
+	};
+
+	struct TextureBlendSphereOp {
+		Vector3 center;
+		float radius;
+		float radius_squared;
+		TextureParams tp;
+
+		TextureBlendSphereOp(Vector3 pCenter, float pRadius, TextureParams pTp) {
+			center = pCenter;
+			radius = pRadius;
+			radius_squared = pRadius * pRadius;
+			tp = pTp;
+		}
+
+		inline void operator()(Vector3i pos, uint16_t &indices, uint16_t &weights) const {
+			const float distance_squared = pos.to_vec3().distance_squared_to(center);
+			if (distance_squared < radius_squared) {
+				const float distance_from_radius = radius - Math::sqrt(distance_squared);
+				const float target_weight = tp.opacity * clamp(tp.sharpness * (distance_from_radius / radius), 0.f, 1.f);
+				blend_texture_packed_u16(tp.index, target_weight, indices, weights);
+			}
+		}
+	};
+
+	// Used on smooth terrain
+	TextureParams _texture_params;
 };
 
 VARIANT_ENUM_CAST(VoxelTool::Mode)

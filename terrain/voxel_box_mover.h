@@ -3,7 +3,9 @@
 
 #include "voxel_terrain.h"
 #include <core/math/aabb.h>
+#include <scene/3d/spatial.h>
 
+class MultiMesh;
 // Helper to get simple AABB physics
 class VoxelBoxMover : public Reference {
 	GDCLASS(VoxelBoxMover, Reference)

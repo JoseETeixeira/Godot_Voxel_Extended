@@ -22,7 +22,7 @@ VoxelTerrain::VoxelTerrain() {
 
 	// TODO Should it actually be finite for better discovery?
 	// Infinite by default
-	_bounds_in_voxels = Rect3i::from_center_extents(Vector3i(0), Vector3i(VoxelConstants::MAX_VOLUME_EXTENT));
+	_bounds_in_voxels = Box3i::from_center_extents(Vector3i(0), Vector3i(VoxelConstants::MAX_VOLUME_EXTENT));
 
 	_volume_id = VoxelServer::get_singleton()->add_volume(&_reception_buffers, VoxelServer::VOLUME_SPARSE_GRID);
 
@@ -181,8 +181,8 @@ void VoxelTerrain::set_mesh_block_size(unsigned int mesh_block_size) {
 		PairedViewer &viewer = _paired_viewers[i];
 		// Resetting both because it's a re-initialization.
 		// We could also be doing that before or after their are shifted.
-		viewer.state.mesh_box = Rect3i();
-		viewer.prev_state.mesh_box = Rect3i();
+		viewer.state.mesh_box = Box3i();
+		viewer.prev_state.mesh_box = Box3i();
 	}
 
 	VoxelServer::get_singleton()->set_volume_render_block_size(_volume_id, mesh_block_size);
@@ -308,11 +308,14 @@ void VoxelTerrain::try_schedule_mesh_update(VoxelMeshBlock *mesh_block) {
 	}
 
 	const int render_to_data_factor = get_mesh_block_size() / get_data_block_size();
-	const Rect3i bounds_in_data_blocks = _bounds_in_voxels.downscaled(get_data_block_size());
+	const Box3i bounds_in_data_blocks = _bounds_in_voxels.downscaled(get_data_block_size());
 	// Pad by 1 because meshing needs neighbors
-	const Rect3i data_box = Rect3i(mesh_block->position * render_to_data_factor, Vector3i(render_to_data_factor))
-									.padded(1)
-									.clipped(bounds_in_data_blocks);
+	const Box3i data_box = Box3i(mesh_block->position * render_to_data_factor, Vector3i(render_to_data_factor))
+								   .padded(1)
+								   .clipped(bounds_in_data_blocks);
+
+	// If we get an empty box at this point, something is wrong with the caller
+	ERR_FAIL_COND(data_box.is_empty());
 
 	// Check if we have the data
 	const bool data_available = data_box.all_cells_match([this](Vector3i bpos) {
@@ -596,12 +599,12 @@ void VoxelTerrain::reset_map() {
 }
 
 void VoxelTerrain::post_edit_voxel(Vector3i pos) {
-	post_edit_area(Rect3i(pos, Vector3i(1, 1, 1)));
+	post_edit_area(Box3i(pos, Vector3i(1, 1, 1)));
 }
 
-void VoxelTerrain::try_schedule_mesh_update_from_data(const Rect3i &box_in_voxels) {
+void VoxelTerrain::try_schedule_mesh_update_from_data(const Box3i &box_in_voxels) {
 	// We pad by 1 because neighbor blocks might be affected visually (for example, ambient occlusion)
-	const Rect3i mesh_box = box_in_voxels.padded(1).downscaled(get_mesh_block_size());
+	const Box3i mesh_box = box_in_voxels.padded(1).downscaled(get_mesh_block_size());
 	mesh_box.for_each_cell([this](Vector3i pos) {
 		VoxelMeshBlock *block = _mesh_map.get_block(pos);
 		// There isn't necessarily a mesh block, if the edit happens in a boundary,
@@ -612,11 +615,11 @@ void VoxelTerrain::try_schedule_mesh_update_from_data(const Rect3i &box_in_voxel
 	});
 }
 
-void VoxelTerrain::post_edit_area(Rect3i box_in_voxels) {
+void VoxelTerrain::post_edit_area(Box3i box_in_voxels) {
 	box_in_voxels.clip(_bounds_in_voxels);
 
 	// Mark data as modified
-	const Rect3i data_box = box_in_voxels.downscaled(get_data_block_size());
+	const Box3i data_box = box_in_voxels.downscaled(get_data_block_size());
 	data_box.for_each_cell([this](Vector3i pos) {
 		VoxelDataBlock *block = _data_map.get_block(pos);
 		// The edit can happen next to a boundary
@@ -718,7 +721,7 @@ void VoxelTerrain::send_block_data_requests() {
 	} else {
 		if (_blocks_to_save.size() > 0) {
 			PRINT_VERBOSE(String("Not saving {0} blocks because no stream is assigned")
-								  .format(varray(_blocks_to_save.size())));
+								  .format(varray(SIZE_T_TO_VARIANT(_blocks_to_save.size()))));
 		}
 	}
 
@@ -729,16 +732,25 @@ void VoxelTerrain::send_block_data_requests() {
 
 void VoxelTerrain::emit_data_block_loaded(const VoxelDataBlock *block) {
 	const Variant vpos = block->position.to_vec3();
-	const Variant vbuffer = block->voxels;
-	const Variant *args[2] = { &vpos, &vbuffer };
-	emit_signal(VoxelStringNames::get_singleton()->block_loaded, args, 2);
+	// Not sure about exposing buffers directly... some stuff on them is useful to obtain directly,
+	// but also it allows scripters to mess with voxels in a way they should not.
+	// Example: modifying voxels without locking them first, while another thread may be reading them at the same time.
+	// The same thing could happen the other way around (threaded task modifying voxels while you try to read them).
+	// It isn't planned to expose VoxelBuffer locks because there are too many of them,
+	// it may likely shift to another system in the future, and might even be changed to no longer inherit Reference.
+	// So unless this is absolutely necessary, buffers aren't exposed. Workaround: use VoxelTool
+	//const Variant vbuffer = block->voxels;
+	//const Variant *args[2] = { &vpos, &vbuffer };
+	const Variant *args[1] = { &vpos };
+	emit_signal(VoxelStringNames::get_singleton()->block_loaded, args, 1);
 }
 
 void VoxelTerrain::emit_data_block_unloaded(const VoxelDataBlock *block) {
 	const Variant vpos = block->position.to_vec3();
-	const Variant vbuffer = block->voxels;
-	const Variant *args[2] = { &vpos, &vbuffer };
-	emit_signal(VoxelStringNames::get_singleton()->block_unloaded, args, 2);
+	// const Variant vbuffer = block->voxels;
+	// const Variant *args[2] = { &vpos, &vbuffer };
+	const Variant *args[1] = { &vpos };
+	emit_signal(VoxelStringNames::get_singleton()->block_unloaded, args, 1);
 }
 
 bool VoxelTerrain::try_get_paired_viewer_index(uint32_t id, size_t &out_i) const {
@@ -791,11 +803,13 @@ void VoxelTerrain::_process() {
 		// TODO There is probably a better way to do this
 		const float view_distance_scale = world_to_local_transform.basis.xform(Vector3(1, 0, 0)).length();
 
-		const Rect3i bounds_in_blocks = _bounds_in_voxels.downscaled(get_data_block_size());
+		const Box3i bounds_in_data_blocks = _bounds_in_voxels.downscaled(get_data_block_size());
+		const Box3i bounds_in_mesh_blocks = _bounds_in_voxels.downscaled(get_mesh_block_size());
 
 		struct UpdatePairedViewer {
 			VoxelTerrain &self;
-			const Rect3i bounds_in_blocks;
+			const Box3i bounds_in_data_blocks;
+			const Box3i bounds_in_mesh_blocks;
 			const Transform world_to_local_transform;
 			const float view_distance_scale;
 
@@ -836,22 +850,31 @@ void VoxelTerrain::_process() {
 
 					// Adding one block of padding because meshing requires neighbors
 					view_distance_data_blocks = view_distance_mesh_blocks * render_to_data_factor + 1;
+
 					data_block_pos = mesh_block_pos * render_to_data_factor;
-					state.mesh_box = Rect3i::from_center_extents(mesh_block_pos, Vector3i(view_distance_mesh_blocks));
+					state.mesh_box = Box3i::from_center_extents(mesh_block_pos, Vector3i(view_distance_mesh_blocks))
+											 .clipped(bounds_in_mesh_blocks);
 
 				} else {
 					view_distance_data_blocks = ceildiv(state.view_distance_voxels, data_block_size);
+
 					data_block_pos = state.local_position_voxels.floordiv(data_block_size);
-					state.mesh_box = Rect3i();
+					state.mesh_box = Box3i();
 				}
 
-				state.data_box = Rect3i::from_center_extents(data_block_pos, Vector3i(view_distance_data_blocks))
-										 .clipped(bounds_in_blocks);
+				state.data_box = Box3i::from_center_extents(data_block_pos, Vector3i(view_distance_data_blocks))
+										 .clipped(bounds_in_data_blocks);
 			}
 		};
 
 		// New viewers and updates
-		UpdatePairedViewer u{ *this, bounds_in_blocks, world_to_local_transform, view_distance_scale };
+		UpdatePairedViewer u{
+			*this,
+			bounds_in_data_blocks,
+			bounds_in_mesh_blocks,
+			world_to_local_transform,
+			view_distance_scale
+		};
 		VoxelServer::get_singleton()->for_each_viewer(u);
 	}
 
@@ -866,21 +889,21 @@ void VoxelTerrain::_process() {
 			const PairedViewer &viewer = _paired_viewers[i];
 
 			{
-				const Rect3i &new_data_box = viewer.state.data_box;
-				const Rect3i &prev_data_box = viewer.prev_state.data_box;
+				const Box3i &new_data_box = viewer.state.data_box;
+				const Box3i &prev_data_box = viewer.prev_state.data_box;
 
 				if (prev_data_box != new_data_box) {
 					VOXEL_PROFILE_SCOPE();
 
 					// Unview blocks that just fell out of range
-					prev_data_box.difference(new_data_box, [this, &viewer](Rect3i out_of_range_box) {
+					prev_data_box.difference(new_data_box, [this, &viewer](Box3i out_of_range_box) {
 						out_of_range_box.for_each_cell([this, &viewer](Vector3i bpos) {
 							unview_data_block(bpos);
 						});
 					});
 
 					// View blocks that just entered the range
-					new_data_box.difference(prev_data_box, [this, &viewer](Rect3i box_to_load) {
+					new_data_box.difference(prev_data_box, [this, &viewer](Box3i box_to_load) {
 						box_to_load.for_each_cell([this, &viewer](Vector3i bpos) {
 							// Load or update block
 							view_data_block(bpos);
@@ -890,14 +913,14 @@ void VoxelTerrain::_process() {
 			}
 
 			{
-				const Rect3i &new_mesh_box = viewer.state.mesh_box;
-				const Rect3i &prev_mesh_box = viewer.prev_state.mesh_box;
+				const Box3i &new_mesh_box = viewer.state.mesh_box;
+				const Box3i &prev_mesh_box = viewer.prev_state.mesh_box;
 
 				if (prev_mesh_box != new_mesh_box) {
 					VOXEL_PROFILE_SCOPE();
 
 					// Unview blocks that just fell out of range
-					prev_mesh_box.difference(new_mesh_box, [this, &viewer](Rect3i out_of_range_box) {
+					prev_mesh_box.difference(new_mesh_box, [this, &viewer](Box3i out_of_range_box) {
 						out_of_range_box.for_each_cell([this, &viewer](Vector3i bpos) {
 							unview_mesh_block(bpos,
 									viewer.prev_state.requires_meshes,
@@ -906,7 +929,7 @@ void VoxelTerrain::_process() {
 					});
 
 					// View blocks that just entered the range
-					new_mesh_box.difference(prev_mesh_box, [this, &viewer](Rect3i box_to_load) {
+					new_mesh_box.difference(prev_mesh_box, [this, &viewer](Box3i box_to_load) {
 						box_to_load.for_each_cell([this, &viewer](Vector3i bpos) {
 							// Load or update block
 							view_mesh_block(bpos,
@@ -920,7 +943,7 @@ void VoxelTerrain::_process() {
 				// This operates on a DISTINCT set of blocks than the one above.
 
 				if (viewer.state.requires_collisions != viewer.prev_state.requires_collisions) {
-					const Rect3i box = new_mesh_box.clipped(prev_mesh_box);
+					const Box3i box = new_mesh_box.clipped(prev_mesh_box);
 					if (viewer.state.requires_collisions) {
 						box.for_each_cell([this](Vector3i bpos) {
 							view_mesh_block(bpos, false, true);
@@ -934,7 +957,7 @@ void VoxelTerrain::_process() {
 				}
 
 				if (viewer.state.requires_meshes != viewer.prev_state.requires_meshes) {
-					const Rect3i box = new_mesh_box.clipped(prev_mesh_box);
+					const Box3i box = new_mesh_box.clipped(prev_mesh_box);
 					if (viewer.state.requires_meshes) {
 						box.for_each_cell([this](Vector3i bpos) {
 							view_mesh_block(bpos, true, false);
@@ -1047,7 +1070,7 @@ void VoxelTerrain::_process() {
 			{
 				VOXEL_PROFILE_SCOPE();
 				try_schedule_mesh_update_from_data(
-						Rect3i(_data_map.block_to_voxel(block_pos), Vector3i(get_data_block_size())));
+						Box3i(_data_map.block_to_voxel(block_pos), Vector3i(get_data_block_size())));
 			}
 		}
 
@@ -1077,8 +1100,17 @@ void VoxelTerrain::_process() {
 			ERR_CONTINUE(mesh_block->get_mesh_state() != VoxelMeshBlock::MESH_UPDATE_NOT_SENT);
 
 			// Pad by 1 because meshing requires neighbors
-			const Rect3i data_box =
-					Rect3i(mesh_block_pos * mesh_to_data_factor, Vector3i(mesh_to_data_factor)).padded(1);
+			const Box3i data_box =
+					Box3i(mesh_block_pos * mesh_to_data_factor, Vector3i(mesh_to_data_factor)).padded(1);
+
+#ifdef DEBUG_ENABLED
+			// We must have picked up a valid data block
+			{
+				const Vector3i anchor_pos = data_box.pos + Vector3i(1, 1, 1);
+				const VoxelDataBlock *data_block = _data_map.get_block(anchor_pos);
+				ERR_CONTINUE(data_block == nullptr);
+			}
+#endif
 
 			VoxelServer::BlockMeshInput mesh_request;
 			mesh_request.render_block_position = mesh_block_pos;
@@ -1243,9 +1275,9 @@ bool VoxelTerrain::is_stream_running_in_editor() const {
 	return _run_stream_in_editor;
 }
 
-void VoxelTerrain::set_bounds(Rect3i box) {
+void VoxelTerrain::set_bounds(Box3i box) {
 	_bounds_in_voxels = box.clipped(
-			Rect3i::from_center_extents(Vector3i(), Vector3i(VoxelConstants::MAX_VOLUME_EXTENT)));
+			Box3i::from_center_extents(Vector3i(), Vector3i(VoxelConstants::MAX_VOLUME_EXTENT)));
 
 	// Round to block size
 	_bounds_in_voxels = _bounds_in_voxels.snapped(get_data_block_size());
@@ -1261,7 +1293,7 @@ void VoxelTerrain::set_bounds(Rect3i box) {
 	// TODO Editor gizmo bounds
 }
 
-Rect3i VoxelTerrain::get_bounds() const {
+Box3i VoxelTerrain::get_bounds() const {
 	return _bounds_in_voxels;
 }
 
@@ -1293,11 +1325,11 @@ void VoxelTerrain::_b_save_block(Vector3 p_block_pos) {
 
 void VoxelTerrain::_b_set_bounds(AABB aabb) {
 	// TODO Please Godot, have an integer AABB!
-	set_bounds(Rect3i(aabb.position.round(), aabb.size.round()));
+	set_bounds(Box3i(aabb.position.round(), aabb.size.round()));
 }
 
 AABB VoxelTerrain::_b_get_bounds() const {
-	const Rect3i b = get_bounds();
+	const Box3i b = get_bounds();
 	return AABB(b.pos.to_vec3(), b.size.to_vec3());
 }
 
@@ -1319,6 +1351,8 @@ void VoxelTerrain::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("voxel_to_data_block", "voxel_pos"), &VoxelTerrain::_b_voxel_to_data_block);
 	ClassDB::bind_method(D_METHOD("data_block_to_voxel", "block_pos"), &VoxelTerrain::_b_data_block_to_voxel);
+
+	ClassDB::bind_method(D_METHOD("get_data_block_size"), &VoxelTerrain::get_data_block_size);
 
 	ClassDB::bind_method(D_METHOD("get_mesh_block_size"), &VoxelTerrain::get_mesh_block_size);
 	ClassDB::bind_method(D_METHOD("set_mesh_block_size", "size"), &VoxelTerrain::set_mesh_block_size);

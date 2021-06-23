@@ -1,7 +1,8 @@
 #include "voxel_tool_lod_terrain.h"
-#include "../terrain/voxel_data_map.h"
 #include "../terrain/voxel_lod_terrain.h"
+#include "../util/funcs.h"
 #include "../util/voxel_raycast.h"
+#include "funcs.h"
 
 VoxelToolLodTerrain::VoxelToolLodTerrain(VoxelLodTerrain *terrain, VoxelDataMap &map) :
 		_terrain(terrain), _map(&map) {
@@ -10,10 +11,10 @@ VoxelToolLodTerrain::VoxelToolLodTerrain(VoxelLodTerrain *terrain, VoxelDataMap 
 	// Don't destroy the terrain while a voxel tool still references it
 }
 
-bool VoxelToolLodTerrain::is_area_editable(const Rect3i &box) const {
+bool VoxelToolLodTerrain::is_area_editable(const Box3i &box) const {
 	ERR_FAIL_COND_V(_terrain == nullptr, false);
 	// TODO Take volume bounds into account
-	return _map->is_area_fully_loaded(box.padded(1));
+	return _map->is_area_fully_loaded(box);
 }
 
 template <typename Volume_F>
@@ -39,7 +40,6 @@ float get_sdf_interpolated(Volume_F &f, Vector3 pos) {
 template <typename Volume_F>
 float approximate_distance_to_isosurface_binary_search(
 		Volume_F &f, Vector3 pos0, Vector3 dir, float d1, int iterations) {
-
 	float d0 = 0.f;
 	float sdf0 = get_sdf_interpolated(f, pos0);
 	// The position given as argument may be a rough approximation coming from the middle-phase,
@@ -149,6 +149,29 @@ Ref<VoxelRaycastResult> VoxelToolLodTerrain::raycast(
 	return res;
 }
 
+void VoxelToolLodTerrain::do_sphere(Vector3 center, float radius) {
+	ERR_FAIL_COND(_terrain == nullptr);
+
+	if (_mode != MODE_TEXTURE_PAINT) {
+		VoxelTool::do_sphere(center, radius);
+		return;
+	}
+
+	VOXEL_PROFILE_SCOPE();
+
+	const Box3i box(Vector3i(center) - Vector3i(Math::floor(radius)), Vector3i(Math::ceil(radius) * 2));
+
+	if (!is_area_editable(box)) {
+		PRINT_VERBOSE("Area not editable");
+		return;
+	}
+
+	_map->write_box_2(box, VoxelBuffer::CHANNEL_INDICES, VoxelBuffer::CHANNEL_WEIGHTS,
+			TextureBlendSphereOp{ center, radius, _texture_params });
+
+	_post_edit(box);
+}
+
 uint64_t VoxelToolLodTerrain::_get_voxel(Vector3i pos) const {
 	ERR_FAIL_COND_V(_terrain == nullptr, 0);
 	return _map->get_voxel(pos, _channel);
@@ -169,7 +192,7 @@ void VoxelToolLodTerrain::_set_voxel_f(Vector3i pos, float v) {
 	_map->set_voxel_f(v, pos, _channel);
 }
 
-void VoxelToolLodTerrain::_post_edit(const Rect3i &box) {
+void VoxelToolLodTerrain::_post_edit(const Box3i &box) {
 	ERR_FAIL_COND(_terrain == nullptr);
 	_terrain->post_edit_area(box);
 }

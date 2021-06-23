@@ -49,6 +49,7 @@ public:
 
 	unsigned int get_voxel_count() const;
 	void set_voxel_count(unsigned int type_count);
+	Ref<Voxel> create_voxel_cube_with_color(unsigned int id, String name,Color color,unsigned int material_id);
 
 	bool get_bake_tangents() const { return _bake_tangents; }
 	void set_bake_tangents(bool bt);

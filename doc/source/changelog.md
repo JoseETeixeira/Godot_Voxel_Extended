@@ -7,11 +7,31 @@ At the moment, this module doesn't have a distinct release schedule, so this cha
 
 Semver is not yet in place, so each version can have breaking changes, although it shouldn't happen often.
 
+
+Ongoing development - `master`
+-------------------------------
+
+- General
+    - Added `VoxelTerrain.get_data_block_size()`
+    - Added `VoxelToolTerrain.for_each_voxel_metadata_in_area()` to quickly find all metadata in a box
+
+- Smooth voxels
+    - Initial support for texturing data in voxels, using 4-bit indices and weights
+    - Optimized `VoxelMesherTransvoxel`'s hot path, making it about 20% faster
+
+- Breaking changes
+    - `VoxelBuffer` channels `DATA3` and `DATA4` were renamed `INDICES` and `WEIGHTS`
+
+- Fixes
+    - `VoxelGeneratorGraph`: changes to node properties are now saved properly
+    - `VoxelBuffer`: `copy_voxel_metadata_in_area` was checking the source box incorrectly
+
+
 09/05/2021 - `godot3.3`
 -----------------------
 
 - General
-    - Introduction of Voxel Server, which shares threaded tasks among all voxel nodes
+    - Introduction of `VoxelServer`, which shares threaded tasks among all voxel nodes
     - Voxel data is no longer copied when sent to processing threads, reducing high memory spikes in some scenarios
     - Added a utility class to load `.vox` files created with MagicaVoxel (scripts only)
     - Voxel nodes can be moved, scaled and rotated
@@ -47,10 +67,13 @@ Semver is not yet in place, so each version can have breaking changes, although 
     - The TYPE channel is now 16-bit by default instead of 8-bit, allowing to store up to 65,536 types (part of this channel might actually be used to store rotation in the future)
     - Added normalmaps support
     - `VoxelRaycastResult` now also contains hit distance, so it is possible to determine the exact hit position
+    - `VoxelBoxMover` supports scaled/translated terrains and `VoxelMesherCubes` (limited to non-zero color voxels)
+    - `VoxelColorPalette` colors can be edited in the inspector
+    - `VoxelToolTerrain.raycast` accounts for scale and rotation, and supports VoxelMesherCubes (non-zero values)
 
 - Breaking changes
     - `VoxelViewer` now replaces the `viewer_path` property on `VoxelTerrain`, and allows multiple loading points
-    - Defined `COLOR` channel in `VoxelBuffer`, previously known as `DATA3`
+    - Defined `COLOR` channel in `VoxelBuffer`, previously known as `DATA2`
     - `VoxelGenerator` is no longer the base for script-based generators, use `VoxelGeneratorScript` instead
     - `VoxelGenerator` no longer inherits `VoxelStream`
     - `VoxelStream` is no longer the base for script-based streams, use `VoxelStreamScript` instead

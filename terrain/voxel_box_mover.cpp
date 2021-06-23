@@ -1,7 +1,12 @@
 #include "voxel_box_mover.h"
 #include "../meshers/blocky/voxel_mesher_blocky.h"
 #include "../meshers/cubes/voxel_mesher_cubes.h"
+#include <scene/3d/collision_shape.h>
+#include <scene/3d/mesh_instance.h>
+#include "../../scene/resources/convex_polygon_shape.h"
+#include "../../scene/3d/physics_body.h"
 #include "../util/godot/funcs.h"
+#include <vector>
 
 static AABB expand_with_vector(AABB box, Vector3 v) {
 	if (v.x > 0) {
@@ -178,10 +183,12 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 							world_box.position += i.to_vec3();
 							potential_boxes.push_back(world_box);
 						}
+
 					}
 				}
 			}
 		}
+
 
 	} else if (try_get_as(p_terrain->get_mesher(), mesher_cubes)) {
 		const int channel = VoxelBuffer::CHANNEL_COLOR;
@@ -195,6 +202,24 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 					}
 				}
 			}
+		}
+	}
+	if(p_terrain->get_child_count()>0){
+		for (int it = 0; it < p_terrain->get_child_count(); it++) {
+			Object *obj = p_terrain->get_child(it);
+			MeshInstance *sb = Object::cast_to<MeshInstance>(obj);
+			if(sb != nullptr) {
+				for (int sbc =0; sbc < sb->get_child_count(); sbc++){
+					Object *mio = sb->get_child(sbc);
+					MeshInstance *mi = Object::cast_to<MeshInstance>(mio);
+					if(mi != nullptr) {
+						int minimum = min(sbc+1,2);
+						potential_boxes.push_back(AABB(to_local.xform(Vector3(sb->get_transform().get_origin()))+Vector3(-1+sbc,sbc,-1+sbc), Vector3(1,minimum,1)));
+					}
+				}
+
+			}
+
 		}
 	}
 

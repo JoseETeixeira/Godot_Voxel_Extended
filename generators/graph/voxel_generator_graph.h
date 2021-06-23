@@ -54,6 +54,7 @@ public:
 		NODE_FAST_NOISE_3D,
 		NODE_FAST_NOISE_GRADIENT_2D,
 		NODE_FAST_NOISE_GRADIENT_3D,
+		NODE_OUTPUT_WEIGHT,
 		NODE_TYPE_COUNT
 	};
 
@@ -96,6 +97,10 @@ public:
 	PoolIntArray get_node_ids() const;
 	uint32_t generate_node_id() { return _graph.generate_node_id(); }
 
+	int get_nodes_count() const;
+
+	void load_plane_preset();
+
 	// Performance tuning (advanced)
 
 	bool is_using_optimized_execution_map() const;
@@ -135,14 +140,11 @@ public:
 	VoxelGraphRuntime::CompilationResult compile();
 	bool is_good() const;
 
-	void generate_set(ArraySlice<float> in_x, ArraySlice<float> in_y, ArraySlice<float> in_z,
-			ArraySlice<float> out_sdf);
-
-	Interval analyze_range(Vector3i min_pos, Vector3i max_pos, bool optimize_execution_map, bool debug) const;
-	void generate_optimized_execution_map();
+	void generate_set(Span<float> in_x, Span<float> in_y, Span<float> in_z);
 
 	// Returns state from the last generator used in the current thread
 	static const VoxelGraphRuntime::State &get_last_state_from_current_thread();
+	static Span<const int> get_last_execution_map_debug_from_current_thread();
 
 	bool try_get_output_port_address(ProgramGraph::PortLocation port, uint32_t &out_address) const;
 
@@ -150,6 +152,7 @@ public:
 
 	// Debug
 
+	Interval debug_analyze_range(Vector3i min_pos, Vector3i max_pos, bool optimize_execution_map) const;
 	float debug_measure_microseconds_per_voxel(bool singular);
 	void debug_load_waves_preset();
 
@@ -165,11 +168,20 @@ private:
 	// See https://github.com/godotengine/godot/issues/36895
 	void _b_set_node_param_null(int node_id, int param_index);
 	float _b_generate_single(Vector3 pos);
-	Vector2 _b_analyze_range(Vector3 min_pos, Vector3 max_pos) const;
+	Vector2 _b_debug_analyze_range(Vector3 min_pos, Vector3 max_pos) const;
 	Dictionary _b_compile();
 
 	void _on_subresource_changed();
 	void connect_to_subresource_changes();
+
+	struct WeightOutput {
+		unsigned int layer_index;
+		unsigned int output_buffer_index;
+	};
+
+	static void gather_indices_and_weights(Span<const WeightOutput> weight_outputs,
+			const VoxelGraphRuntime::State &state, Vector3i rmin, Vector3i rmax, int ry, VoxelBuffer &out_voxel_buffer,
+			FixedArray<uint8_t, 4> spare_indices);
 
 	static void _bind_methods();
 
@@ -197,15 +209,28 @@ private:
 
 	// Only compiling and generation methods are thread-safe.
 
-	std::shared_ptr<VoxelGraphRuntime> _runtime = nullptr;
+	struct Runtime {
+		VoxelGraphRuntime runtime;
+		// Indices that are not used in the graph.
+		// This is used when there are less than 4 texture weight outputs.
+		FixedArray<uint8_t, 4> spare_texture_indices;
+		// Index to the SDF output
+		int sdf_output_buffer_index = -1;
+		FixedArray<WeightOutput, 16> weight_outputs;
+		// List of indices to feed queries. The order doesn't matter, can be different from `weight_outputs`.
+		FixedArray<unsigned int, 16> weight_output_indices;
+		unsigned int weight_outputs_count = 0;
+	};
+
+	std::shared_ptr<Runtime> _runtime = nullptr;
 	RWLock _runtime_lock;
 
 	struct Cache {
 		std::vector<float> x_cache;
 		std::vector<float> y_cache;
 		std::vector<float> z_cache;
-		std::vector<float> slice_cache;
 		VoxelGraphRuntime::State state;
+		VoxelGraphRuntime::ExecutionMap optimized_execution_map;
 	};
 
 	static thread_local Cache _cache;

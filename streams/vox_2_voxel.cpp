@@ -75,7 +75,6 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 
 		} else if (strcmp(chunk_id, "XYZI") == 0) {
 			data->color_indexes.resize(data->size.x * data->size.y * data->size.z, 0);
-
 			const uint32_t num_voxels = f->get_32();
 
 			for (uint32_t i = 0; i < num_voxels; ++i) {
@@ -113,11 +112,18 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 			// Ignore chunk
 			f->seek(f->get_position() + chunk_size);
 		}
+		
+		
 	}
-		for(uint32_t i=0;i<data->output.size();i++){
+	for(uint32_t i=0;i<data->output.size();i++){
+
+		if (data->output[i] != nullptr){
 			data->output[i]->color = data->palette[data->output[i]->color_index];
 		}
-		return OK;
+	}
+	
+	
+	return OK;
 
 }
 

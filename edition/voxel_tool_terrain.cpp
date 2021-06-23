@@ -16,10 +16,10 @@ VoxelToolTerrain::VoxelToolTerrain(VoxelTerrain *terrain) {
 	// Don't destroy the terrain while a voxel tool still references it
 }
 
-bool VoxelToolTerrain::is_area_editable(const Rect3i &box) const {
+bool VoxelToolTerrain::is_area_editable(const Box3i &box) const {
 	ERR_FAIL_COND_V(_terrain == nullptr, false);
 	// TODO Take volume bounds into account
-	return _terrain->get_storage().is_area_fully_loaded(box.padded(1));
+	return _terrain->get_storage().is_area_fully_loaded(box);
 }
 
 void VoxelToolTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<FuncRef> callback)const{
@@ -224,7 +224,30 @@ void VoxelToolTerrain::paste(Vector3i pos, Ref<VoxelBuffer> p_voxels, uint8_t ch
 		channels_mask = (1 << _channel);
 	}
 	_terrain->get_storage().paste(pos, **p_voxels, channels_mask, mask_value, false);
-	_post_edit(Rect3i(pos, p_voxels->get_size()));
+	_post_edit(Box3i(pos, p_voxels->get_size()));
+}
+
+void VoxelToolTerrain::do_sphere(Vector3 center, float radius) {
+	ERR_FAIL_COND(_terrain == nullptr);
+
+	if (_mode != MODE_TEXTURE_PAINT) {
+		VoxelTool::do_sphere(center, radius);
+		return;
+	}
+
+	VOXEL_PROFILE_SCOPE();
+
+	const Box3i box(Vector3i(center) - Vector3i(Math::floor(radius)), Vector3i(Math::ceil(radius) * 2));
+
+	if (!is_area_editable(box)) {
+		PRINT_VERBOSE("Area not editable");
+		return;
+	}
+
+	_terrain->get_storage().write_box_2(box, VoxelBuffer::CHANNEL_INDICES, VoxelBuffer::CHANNEL_WEIGHTS,
+			TextureBlendSphereOp{ center, radius, _texture_params });
+
+	_post_edit(box);
 }
 
 uint64_t VoxelToolTerrain::_get_voxel(Vector3i pos) const {
@@ -247,7 +270,7 @@ void VoxelToolTerrain::_set_voxel_f(Vector3i pos, float v) {
 	_terrain->get_storage().set_voxel_f(v, pos, _channel);
 }
 
-void VoxelToolTerrain::_post_edit(const Rect3i &box) {
+void VoxelToolTerrain::_post_edit(const Box3i &box) {
 	ERR_FAIL_COND(_terrain == nullptr);
 	_terrain->post_edit_area(box);
 }
@@ -375,9 +398,47 @@ void VoxelToolTerrain::run_blocky_random_tick(AABB voxel_area, int voxel_count, 
 	}
 }
 
+void VoxelToolTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<FuncRef> callback) {
+	ERR_FAIL_COND(_terrain == nullptr);
+	ERR_FAIL_COND(callback.is_null());
+
+	const Box3i voxel_box = Box3i(Vector3i(voxel_area.position), Vector3i(voxel_area.size));
+	ERR_FAIL_COND(!is_area_editable(voxel_box));
+
+	const Box3i data_block_box = voxel_box.downscaled(_terrain->get_data_block_size());
+
+	const VoxelDataMap &map = _terrain->get_storage();
+
+	data_block_box.for_each_cell([&map, &callback, voxel_box](Vector3i block_pos) {
+		const VoxelDataBlock *block = map.get_block(block_pos);
+
+		if (block == nullptr) {
+			return;
+		}
+
+		ERR_FAIL_COND(block->voxels.is_null());
+		const Vector3i block_origin = block_pos * map.get_block_size();
+		const Box3i rel_voxel_box(voxel_box.pos - block_origin, voxel_box.size);
+
+		block->voxels->for_each_voxel_metadata_in_area(rel_voxel_box, [&callback, block_origin](Vector3i rel_pos, Variant meta) {
+			const Variant key = (rel_pos + block_origin).to_vec3();
+			const Variant *args[2] = { &key, &meta };
+			Variant::CallError err;
+			callback->call_func(args, 2, err);
+
+			ERR_FAIL_COND_MSG(err.error != Variant::CallError::CALL_OK,
+					String("FuncRef call failed at {0}").format(varray(key)));
+
+			// TODO Can't provide detailed error because FuncRef doesn't give us access to the object
+			// ERR_FAIL_COND_MSG(err.error != Variant::CallError::CALL_OK, false,
+			// 		Variant::get_call_error_text(callback->get_object(), method_name, nullptr, 0, err));
+		});
+	});
+}
+
 void VoxelToolTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("run_blocky_random_tick", "area", "voxel_count", "callback", "batch_count"),
 			&VoxelToolTerrain::run_blocky_random_tick, DEFVAL(16));
-	ClassDB::bind_method(D_METHOD("for_each_voxel_metadata_in_area", "area", "callback"),
-			&VoxelToolTerrain::for_each_voxel_metadata_in_area, DEFVAL(16));
+	ClassDB::bind_method(D_METHOD("for_each_voxel_metadata_in_area", "voxel_area", "callback"),
+			&VoxelToolTerrain::for_each_voxel_metadata_in_area);
 }

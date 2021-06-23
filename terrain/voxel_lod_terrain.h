@@ -2,8 +2,8 @@
 #define VOXEL_LOD_TERRAIN_HPP
 
 #include "../server/voxel_server.h"
+#include "../storage/voxel_data_map.h"
 #include "lod_octree.h"
-#include "voxel_data_map.h"
 #include "voxel_mesh_map.h"
 #include "voxel_node.h"
 
@@ -77,11 +77,11 @@ public:
 	void set_mesh_block_size(unsigned int mesh_block_size);
 
 	// These must be called after an edit
-	void post_edit_area(Rect3i p_box);
+	void post_edit_area(Box3i p_box);
 	void post_edit_block_lod0(Vector3i bpos);
 
-	void set_voxel_bounds(Rect3i p_box);
-	inline Rect3i get_voxel_bounds() const { return _bounds_in_voxels; }
+	void set_voxel_bounds(Box3i p_box);
+	inline Box3i get_voxel_bounds() const { return _bounds_in_voxels; }
 
 	void set_collision_update_delay(int delay_msec);
 	int get_collision_update_delay() const;
@@ -223,13 +223,13 @@ private:
 	// Indexed by a grid coordinate whose step is the size of the highest-LOD block.
 	// Not using a pointer because Map storage is stable.
 	Map<Vector3i, OctreeItem> _lod_octrees;
-	Rect3i _last_octree_region_box;
+	Box3i _last_octree_region_box;
 
 	// Area within which voxels can exist.
 	// Note, these bounds might not be exactly represented. This volume is chunk-based, so the result will be
 	// approximated to the closest chunk.
-	Rect3i _bounds_in_voxels;
-	//Rect3i _prev_bounds_in_voxels;
+	Box3i _bounds_in_voxels;
+	//Box3i _prev_bounds_in_voxels;
 
 	Ref<VoxelStream> _stream;
 	Ref<VoxelGenerator> _generator;
@@ -246,7 +246,7 @@ private:
 	std::vector<VoxelMeshBlock *> _blocks_pending_transition_update;
 
 	Ref<Material> _material;
-	std::vector<Ref<ShaderMaterial> > _shader_material_pool;
+	std::vector<Ref<ShaderMaterial>> _shader_material_pool;
 
 	bool _generate_collisions = true;
 	unsigned int _collision_lod_count = 0;

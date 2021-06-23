@@ -1,14 +1,39 @@
 #include "voxel_tool_buffer.h"
 #include "../storage/voxel_buffer.h"
+#include "../util/profiling.h"
+#include "funcs.h"
 
 VoxelToolBuffer::VoxelToolBuffer(Ref<VoxelBuffer> vb) {
 	ERR_FAIL_COND(vb.is_null());
 	_buffer = vb;
 }
 
-bool VoxelToolBuffer::is_area_editable(const Rect3i &box) const {
+bool VoxelToolBuffer::is_area_editable(const Box3i &box) const {
 	ERR_FAIL_COND_V(_buffer.is_null(), false);
-	return Rect3i(Vector3i(), _buffer->get_size()).encloses(box);
+	return Box3i(Vector3i(), _buffer->get_size()).encloses(box);
+}
+
+void VoxelToolBuffer::do_sphere(Vector3 center, float radius) {
+	ERR_FAIL_COND(_buffer.is_null());
+
+	if (_mode != MODE_TEXTURE_PAINT) {
+		// TODO Eventually all specialized voxel tools should use lambda writing functions
+		VoxelTool::do_sphere(center, radius);
+		return;
+	}
+
+	VOXEL_PROFILE_SCOPE();
+
+	Box3i box(Vector3i(center) - Vector3i(Math::floor(radius)), Vector3i(Math::ceil(radius) * 2));
+	box.clip(Box3i(Vector3i(), _buffer->get_size()));
+
+	_buffer->write_box_2_template<TextureBlendSphereOp, uint16_t, uint16_t>(box,
+			VoxelBuffer::CHANNEL_INDICES,
+			VoxelBuffer::CHANNEL_WEIGHTS,
+			TextureBlendSphereOp(center, radius, _texture_params),
+			Vector3i());
+
+	_post_edit(box);
 }
 
 uint64_t VoxelToolBuffer::_get_voxel(Vector3i pos) const {
@@ -31,7 +56,7 @@ void VoxelToolBuffer::_set_voxel_f(Vector3i pos, float v) {
 	return _buffer->set_voxel_f(v, pos.x, pos.y, pos.z, _channel);
 }
 
-void VoxelToolBuffer::_post_edit(const Rect3i &box) {
+void VoxelToolBuffer::_post_edit(const Box3i &box) {
 	ERR_FAIL_COND(_buffer.is_null());
 	// Nothing special to do
 }
@@ -53,9 +78,9 @@ void VoxelToolBuffer::paste(Vector3i p_pos, Ref<VoxelBuffer> p_voxels, uint8_t c
 	VoxelBuffer *dst = *_buffer;
 	const VoxelBuffer *src = *p_voxels;
 
-	Rect3i box(p_pos, p_voxels->get_size());
+	Box3i box(p_pos, p_voxels->get_size());
 	const Vector3i min_noclamp = box.pos;
-	box.clip(Rect3i(Vector3i(), _buffer->get_size()));
+	box.clip(Box3i(Vector3i(), _buffer->get_size()));
 
 	if (channels_mask == 0) {
 		channels_mask = (1 << get_channel());
@@ -91,5 +116,5 @@ void VoxelToolBuffer::paste(Vector3i p_pos, Ref<VoxelBuffer> p_voxels, uint8_t c
 		}
 	}
 
-	_buffer->copy_voxel_metadata_in_area(p_voxels, Rect3i(Vector3i(), p_voxels->get_size()), p_pos);
+	_buffer->copy_voxel_metadata_in_area(p_voxels, Box3i(Vector3i(), p_voxels->get_size()), p_pos);
 }

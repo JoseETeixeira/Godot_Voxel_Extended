@@ -55,6 +55,16 @@ doc/           | Contains documentation
 
 <p></p>
 
+Tests
+-------
+
+Tests are not mandatory, but if there is time to make new ones, it's good to have.
+
+The module recently includes a `tests/` folder, which contains unit tests. At time of writing, there are very few of them, and I still don't write new ones often. As a game developer, unit tests aren't part of my habits, but I recognize that for a module like this one, it is always better to have some if a feature can be easily tested. It even helped fix a few bugs already. 
+
+No test framework is used at the moment, instead they just run by either printing an error when they fail or not. In Godot 4 the Doctest framework is used, so we may see if we can migrate to that later.
+
+
 Threads
 ---------
 
@@ -102,7 +112,7 @@ For the most part, use `clang-format` and follow Godot conventions.
 - Avoid using macros to define logic or constants. Prefer `static const`, `constexpr` and `inline` functions.
 - Prefer adding `const` to variables that won't change after being initialized
 - Don't exploit booleanization. Example: use `if (a == nullptr)` instead of `if (a)`
-- If possible, avoid plain arrays like `int a[42]`. Debuggers don't catch overruns on them. Prefer using wrappers such as `FixedArray` and `ArraySlice` (or `std::array` and `std::span` once [this](https://github.com/godotengine/godot/issues/31608) is fixed)
+- If possible, avoid plain arrays like `int a[42]`. Debuggers don't catch overruns on them. Prefer using wrappers such as `FixedArray` and `Span` (or `std::array` and `std::span` once [this](https://github.com/godotengine/godot/issues/31608) is fixed)
 - Use `uint32_t`, `uint16_t`, `uint8_t` in case integer size matters.
 
 
@@ -206,7 +216,7 @@ In VSCode, the cpp-tools extension supports Natvis files. Godot comes with such 
 ```
 
 Unfortunately, only one file can be provided at the moment. [An issue is open](https://github.com/Microsoft/vscode-cpptools/issues/925) to request support for multiple files.
-That means if you also want pretty-printing for structures of the voxel module, you have to replace the natvis path to the following:
+That means if you also want pretty-printing for structures of the voxel module, you have to replace the natvis path with the following:
 ```json
             "visualizerFile": "${workspaceFolder}/modules/voxel/voxel.natvis"
 ```
@@ -251,6 +261,16 @@ void some_function() {
 ```
 
 By default scopes take the name of the function, or file and a line number, but you can give a name explicitely using `VOXEL_PROFILE_SCOPE_NAMED("Hello")`. Only compile-time strings are supported, don't use `String` or `std::string`.
+
+It is also possible to plot numeric values so they are displayed in the timeline too:
+
+```cpp
+void process_every_frame() {
+    // Some code...
+
+    VOXEL_PROFILE_PLOT("Bunnies", bunnies.size());
+}
+```
 
 ### Adding Tracy to Godot
 

@@ -62,7 +62,6 @@ static uint32_t get_header_size_v3(const VoxelRegionFormat &format) {
 
 static bool save_header(FileAccess *f, uint8_t version, const VoxelRegionFormat &format,
 		const std::vector<VoxelRegionBlockInfo> &block_infos) {
-
 	ERR_FAIL_COND_V(f == nullptr, false);
 
 	f->seek(0);
@@ -109,7 +108,6 @@ static bool save_header(FileAccess *f, uint8_t version, const VoxelRegionFormat 
 
 static bool load_header(FileAccess *f, uint8_t &out_version, VoxelRegionFormat &out_format,
 		std::vector<VoxelRegionBlockInfo> &out_block_infos) {
-
 	ERR_FAIL_COND_V(f == nullptr, false);
 
 	ERR_FAIL_COND_V(f->get_position() != 0, false);
@@ -305,7 +303,6 @@ const VoxelRegionFormat &VoxelRegionFile::get_format() const {
 
 Error VoxelRegionFile::load_block(
 		Vector3i position, Ref<VoxelBuffer> out_block, VoxelBlockSerializerInternal &serializer) {
-
 	ERR_FAIL_COND_V(out_block.is_null(), ERR_INVALID_PARAMETER);
 	ERR_FAIL_COND_V(_file_access == nullptr, ERR_FILE_CANT_READ);
 	FileAccess *f = _file_access;
@@ -644,7 +641,7 @@ void VoxelRegionFile::debug_check() {
 	FileAccess *f = _file_access;
 	const size_t file_len = f->get_len();
 
-	for (size_t lut_index = 0; lut_index < _header.blocks.size(); ++lut_index) {
+	for (unsigned int lut_index = 0; lut_index < _header.blocks.size(); ++lut_index) {
 		const VoxelRegionBlockInfo &block_info = _header.blocks[lut_index];
 		const Vector3i position = get_block_position_from_index(lut_index);
 		if (block_info.data == 0) {
@@ -654,7 +651,8 @@ void VoxelRegionFile::debug_check() {
 		const unsigned int block_begin = _blocks_begin_offset + sector_index * _header.format.sector_size;
 		if (block_begin >= file_len) {
 			print_line(String("ERROR: LUT {0} ({1}): offset {2} is larger than file size {3}")
-							   .format(varray(lut_index, position.to_vec3(), block_begin, file_len)));
+							   .format(varray(lut_index, position.to_vec3(), block_begin,
+									   SIZE_T_TO_VARIANT(file_len))));
 			continue;
 		}
 		f->seek(block_begin);
@@ -663,7 +661,9 @@ void VoxelRegionFile::debug_check() {
 		const size_t remaining_size = file_len - pos;
 		if (block_data_size > remaining_size) {
 			print_line(String("ERROR: LUT {0} ({1}): block size at offset {2} is larger than remaining size {3}")
-							   .format(varray(lut_index, position.to_vec3(), block_data_size, remaining_size)));
+							   .format(varray(lut_index, position.to_vec3(),
+									   SIZE_T_TO_VARIANT(block_data_size),
+									   SIZE_T_TO_VARIANT(remaining_size))));
 		}
 	}
 }

@@ -44,6 +44,23 @@ void VoxelLibrary::load_default() {
 	solid->set_geometry_type(Voxel::GEOMETRY_CUBE);
 }
 
+Ref<Voxel> VoxelLibrary::create_voxel_cube_with_color(unsigned int id, String name,Color color,unsigned int material_id) {
+
+	if (id >= _voxel_types.size()) {
+		_voxel_types.resize(id + 1);
+	}
+	Ref<Voxel> voxel(memnew(Voxel));
+	voxel->set_id(id);
+	voxel->set_color(color);
+	voxel->set_voxel_name(name);
+	voxel->set_geometry_type(Voxel::GEOMETRY_CUBE);
+	voxel->set_transparent(false);
+	voxel->set_material_id(material_id);
+	_voxel_types[id] = voxel;
+	return voxel;
+}
+
+
 // TODO Add a way to add voxels
 
 bool VoxelLibrary::_set(const StringName &p_name, const Variant &p_value) {

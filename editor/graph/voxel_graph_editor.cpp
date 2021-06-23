@@ -170,6 +170,12 @@ VoxelGraphEditor::VoxelGraphEditor() {
 		_profile_label = memnew(Label);
 		toolbar->add_child(_profile_label);
 
+		_compile_result_label = memnew(Label);
+		_compile_result_label->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		_compile_result_label->set_clip_text(true);
+		_compile_result_label->hide();
+		toolbar->add_child(_compile_result_label);
+
 		Button *range_analysis_button = memnew(Button);
 		range_analysis_button->set_text("Analyze Range...");
 		range_analysis_button->connect("pressed", this, "_on_analyze_range_button_pressed");
@@ -230,6 +236,12 @@ void VoxelGraphEditor::set_graph(Ref<VoxelGeneratorGraph> graph) {
 	_graph = graph;
 
 	if (_graph.is_valid()) {
+		// Load a default preset when creating new graphs.
+		// TODO Downside is, an empty graph cannot be seen.
+		// But Godot doesnt let us know if the resource has been created from the inspector or not
+		if (_graph->get_nodes_count() == 0) {
+			_graph->load_plane_preset();
+		}
 		_graph->connect(CoreStringNames::get_singleton()->changed, this, "_on_graph_changed");
 		_graph->connect(VoxelGeneratorGraph::SIGNAL_NODE_NAME_CHANGED, this, "_on_graph_node_name_changed");
 	}
@@ -361,12 +373,30 @@ void VoxelGraphEditor::create_node_gui(uint32_t node_id) {
 	//node_view.resizable = true
 	//node_view.rect_size = Vector2(200, 100)
 
-	const unsigned int row_count = max(node_type.inputs.size(), node_type.outputs.size());
+	// We artificially hide output ports if the node is an output.
+	// These nodes have an output for implementation reasons, some outputs can process the data like any other node.
+	const bool hide_outputs = node_type.category == VoxelGraphNodeDB::CATEGORY_OUTPUT;
+
+	const unsigned int row_count = max(node_type.inputs.size(), hide_outputs ? 0 : node_type.outputs.size());
 	const Color port_color(0.4, 0.4, 1.0);
+
+	// TODO Insert a summary so the graph would be readable without having to inspect nodes
+	// However left and right slots always start from the first child item,
+	// so we'd have to decouple the real slots indices from the view
+	// if (node_type_id == VoxelGeneratorGraph::NODE_CLAMP) {
+	// 	const float minv = graph.get_node_param(node_id, 0);
+	// 	const float maxv = graph.get_node_param(node_id, 1);
+	// 	Label *sl = memnew(Label);
+	// 	sl->set_modulate(Color(1, 1, 1, 0.5));
+	// 	sl->set_text(String("[{0}, {1}]").format(varray(minv, maxv)));
+	// 	sl->set_align(Label::ALIGN_CENTER);
+	// 	node_view->summary_label = sl;
+	// 	node_view->add_child(sl);
+	// }
 
 	for (unsigned int i = 0; i < row_count; ++i) {
 		const bool has_left = i < node_type.inputs.size();
-		const bool has_right = i < node_type.outputs.size();
+		const bool has_right = (i < node_type.outputs.size()) && !hide_outputs;
 
 		HBoxContainer *property_control = memnew(HBoxContainer);
 		property_control->set_custom_minimum_size(Vector2(0, 24 * EDSCALE));
@@ -462,7 +492,6 @@ void VoxelGraphEditor::_on_graph_edit_gui_input(Ref<InputEvent> event) {
 
 	if (mb.is_valid()) {
 		if (mb->is_pressed()) {
-
 			if (mb->get_button_index() == BUTTON_RIGHT) {
 				_click_position = mb->get_position();
 				_context_menu->set_position(get_global_mouse_position());
@@ -474,7 +503,6 @@ void VoxelGraphEditor::_on_graph_edit_gui_input(Ref<InputEvent> event) {
 
 void VoxelGraphEditor::_on_graph_edit_connection_request(
 		String from_node_name, int from_slot, String to_node_name, int to_slot) {
-
 	VoxelGraphEditorNode *src_node_view = Object::cast_to<VoxelGraphEditorNode>(_graph_edit->get_node(from_node_name));
 	VoxelGraphEditorNode *dst_node_view = Object::cast_to<VoxelGraphEditorNode>(_graph_edit->get_node(to_node_name));
 	ERR_FAIL_COND(src_node_view == nullptr);
@@ -501,7 +529,6 @@ void VoxelGraphEditor::_on_graph_edit_connection_request(
 
 void VoxelGraphEditor::_on_graph_edit_disconnection_request(
 		String from_node_name, int from_slot, String to_node_name, int to_slot) {
-
 	VoxelGraphEditorNode *src_node_view = Object::cast_to<VoxelGraphEditorNode>(_graph_edit->get_node(from_node_name));
 	VoxelGraphEditorNode *dst_node_view = Object::cast_to<VoxelGraphEditorNode>(_graph_edit->get_node(to_node_name));
 	ERR_FAIL_COND(src_node_view == nullptr);
@@ -666,8 +693,22 @@ void VoxelGraphEditor::update_previews() {
 	const VoxelGraphRuntime::CompilationResult result = _graph->compile();
 	if (!result.success) {
 		ERR_PRINT(String("Voxel graph compilation failed: {0}").format(varray(result.message)));
-		// TODO Enhance reporting in the UI
+
+		_compile_result_label->set_text(result.message);
+		_compile_result_label->set_tooltip(result.message);
+		_compile_result_label->set_modulate(Color(1, 0.3, 0.1));
+		_compile_result_label->show();
+
+		if (result.node_id >= 0) {
+			String node_view_path = node_to_gui_name(result.node_id);
+			VoxelGraphEditorNode *node_view =
+					Object::cast_to<VoxelGraphEditorNode>(_graph_edit->get_node(node_view_path));
+			node_view->set_modulate(Color(1, 0.3, 0.1));
+		}
 		return;
+
+	} else {
+		_compile_result_label->hide();
 	}
 
 	if (!_graph->is_good()) {
@@ -691,7 +732,7 @@ void VoxelGraphEditor::update_range_analysis_previews() {
 	ERR_FAIL_COND(!_graph->is_good());
 
 	const AABB aabb = _range_analysis_dialog->get_aabb();
-	_graph->analyze_range(aabb.position, aabb.position + aabb.size, true, true);
+	_graph->debug_analyze_range(aabb.position, aabb.position + aabb.size, true);
 
 	const VoxelGraphRuntime::State &state = _graph->get_last_state_from_current_thread();
 
@@ -727,7 +768,7 @@ void VoxelGraphEditor::update_range_analysis_previews() {
 	}
 
 	// Highlight only nodes that will actually run
-	ArraySlice<const int> execution_map = state.get_debug_execution_map();
+	Span<const int> execution_map = VoxelGeneratorGraph::get_last_execution_map_debug_from_current_thread();
 	for (unsigned int i = 0; i < execution_map.size(); ++i) {
 		String node_view_path = node_to_gui_name(execution_map[i]);
 		VoxelGraphEditorNode *node_view =
@@ -800,11 +841,9 @@ void VoxelGraphEditor::update_slice_previews() {
 	std::vector<float> x_vec;
 	std::vector<float> y_vec;
 	std::vector<float> z_vec;
-	std::vector<float> sdf_vec;
 	x_vec.resize(buffer_size);
 	y_vec.resize(buffer_size);
 	z_vec.resize(buffer_size);
-	sdf_vec.resize(buffer_size);
 
 	const Vector3 min_pos(-preview_size_x / 2, -preview_size_y / 2, 0);
 	const Vector3 max_pos = min_pos + Vector3(preview_size_x, preview_size_x, 0);
@@ -824,10 +863,9 @@ void VoxelGraphEditor::update_slice_previews() {
 	}
 
 	_graph->generate_set(
-			ArraySlice<float>(x_vec, 0, x_vec.size()),
-			ArraySlice<float>(y_vec, 0, y_vec.size()),
-			ArraySlice<float>(z_vec, 0, z_vec.size()),
-			ArraySlice<float>(sdf_vec, 0, sdf_vec.size()));
+			Span<float>(x_vec, 0, x_vec.size()),
+			Span<float>(y_vec, 0, y_vec.size()),
+			Span<float>(z_vec, 0, z_vec.size()));
 
 	const VoxelGraphRuntime::State &last_state = VoxelGeneratorGraph::get_last_state_from_current_thread();
 
@@ -846,7 +884,7 @@ void VoxelGraphEditor::update_slice_previews() {
 			for (int x = 0; x < im.get_width(); ++x) {
 				const float v = buffer.data[i];
 				const float g = clamp((v - info.min_value) * info.value_scale, 0.f, 1.f);
-				im.set_pixel(x, y, Color(g, g, g));
+				im.set_pixel(x, im.get_height() - y - 1, Color(g, g, g));
 				++i;
 			}
 		}
