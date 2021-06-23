@@ -127,24 +127,6 @@ Ref<Voxel> VoxelLibrary::create_voxel(unsigned int id, String name) {
 	return voxel;
 }
 
-Ref<Voxel> VoxelLibrary::create_voxel_cube_with_color(unsigned int id, String name,Color color,unsigned int material_id) {
-
-	if (id >= _voxel_types.size()) {
-		_voxel_types.resize(id + 1);
-	}
-	Ref<Voxel> voxel(memnew(Voxel));
-	voxel->set_id(id);
-	voxel->set_color(color);
-	voxel->set_voxel_name(name);
-	voxel->set_geometry_type(Voxel::GEOMETRY_CUBE);
-	voxel->set_transparent(false);
-	voxel->set_material_id(material_id);
-	_voxel_types[id] = voxel;
-	return voxel;
-}
-
-
-
 void VoxelLibrary::set_voxel(unsigned int idx, Ref<Voxel> voxel) {
 	ERR_FAIL_INDEX(idx, MAX_VOXEL_TYPES);
 
