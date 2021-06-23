@@ -389,57 +389,14 @@ void VoxelBuffer::fill_area(uint64_t defval, Vector3i min, Vector3i max, unsigne
 	}
 }
 
-void VoxelBuffer::set_voxels_in_line(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index) {
-	ERR_FAIL_INDEX(channel_index, MAX_CHANNELS);
-
-	Vector3i::sort_min_max(min, max);
-	min.clamp_to(Vector3i(0, 0, 0), _size + Vector3i(1, 1, 1));
-	max.clamp_to(Vector3i(0, 0, 0), _size + Vector3i(1, 1, 1));
-
-	Channel &channel = _channels[channel_index];
-	defval = clamp_value_for_depth(defval, channel.depth);
-
-	if (channel.data == nullptr) {
-		if (channel.defval == defval) {
-			return;
-		} else {
-			create_channel(channel_index, _size, channel.defval);
+void VoxelBuffer::set_voxel_metadata_in_area(Box3i box, Variant meta) {
+	Map<Vector3i, Variant>::Element *elem = _voxel_metadata.front();
+	while (elem != nullptr) {
+		Map<Vector3i, Variant>::Element *next_elem = elem->next();
+		if (box.contains(elem->key())) {
+			_voxel_metadata[elem->key()] = meta;
 		}
-	}
-
-	Vector3i pos;
-	const unsigned int volume = get_volume();
-	for (pos.z = min.z; pos.z < max.z; ++pos.z) {
-		for (pos.x = min.x; pos.x < max.x; ++pos.x) {
-			const unsigned int dst_ri = get_index(pos.x, pos.y + min.y, pos.z);
-			CRASH_COND(dst_ri >= volume);
-
-			switch (channel.depth) {
-				case DEPTH_8_BIT:
-					// Fill row by row
-					memset(&channel.data[dst_ri], defval,  sizeof(uint8_t));
-					break;
-
-				case DEPTH_16_BIT:
-					
-					((uint16_t *)channel.data)[dst_ri] = defval;
-				
-					break;
-
-				case DEPTH_32_BIT:
-					((uint32_t *)channel.data)[dst_ri] = defval;
-					break;
-
-				case DEPTH_64_BIT:
-
-					((uint64_t *)channel.data)[dst_ri] = defval;
-					break;
-
-				default:
-					CRASH_NOW();
-					break;
-			}
-		}
+		elem = next_elem;
 	}
 }
 
@@ -927,8 +884,6 @@ void VoxelBuffer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("fill_f", "value", "channel"), &VoxelBuffer::fill_f, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("fill_area", "value", "min", "max", "channel"),
 			&VoxelBuffer::_b_fill_area, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("set_voxels_in_line", "value", "min", "max", "channel"),
-			&VoxelBuffer::_b_set_voxels_in_line, DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("copy_channel_from", "other", "channel"), &VoxelBuffer::_b_copy_channel_from);
 	ClassDB::bind_method(D_METHOD("copy_channel_from_area", "other", "src_min", "src_max", "dst_min", "channel"),
 			&VoxelBuffer::_b_copy_channel_from_area);
@@ -950,6 +905,8 @@ void VoxelBuffer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear_voxel_metadata"), &VoxelBuffer::clear_voxel_metadata);
 	ClassDB::bind_method(D_METHOD("clear_voxel_metadata_in_area", "min_pos", "max_pos"),
 			&VoxelBuffer::_b_clear_voxel_metadata_in_area);
+	ClassDB::bind_method(D_METHOD("set_voxel_metadata_in_area", "min_pos", "max_pos","meta"),
+			&VoxelBuffer::_b_set_voxel_metadata_in_area);
 	ClassDB::bind_method(
 			D_METHOD("copy_voxel_metadata_in_area", "src_buffer", "src_min_pos", "src_max_pos", "dst_min_pos"),
 			&VoxelBuffer::_b_copy_voxel_metadata_in_area);
@@ -1001,6 +958,9 @@ void VoxelBuffer::_b_clear_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_p
 	clear_voxel_metadata_in_area(Box3i::from_min_max(Vector3i(min_pos), Vector3i(max_pos)));
 }
 
+void VoxelBuffer::_b_set_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos, Variant meta) {
+	set_voxel_metadata_in_area(Box3i::from_min_max(Vector3i(min_pos), Vector3i(max_pos)),meta);
+}
 void VoxelBuffer::_b_copy_voxel_metadata_in_area(Ref<VoxelBuffer> src_buffer, Vector3 src_min_pos, Vector3 src_max_pos,
 		Vector3 dst_pos) {
 	copy_voxel_metadata_in_area(

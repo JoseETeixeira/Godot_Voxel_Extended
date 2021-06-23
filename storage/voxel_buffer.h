@@ -123,7 +123,6 @@ public:
 
 	void fill(uint64_t defval, unsigned int channel_index = 0);
 	void fill_area(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index = 0);
-	void set_voxels_in_line(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index = 0);
 	void fill_area_f(float fvalue, Vector3i min, Vector3i max, unsigned int channel_index);
 	void fill_f(real_t value, unsigned int channel = 0);
 
@@ -416,6 +415,7 @@ public:
 
 	void clear_voxel_metadata();
 	void clear_voxel_metadata_in_area(Box3i box);
+	void set_voxel_metadata_in_area(Box3i box,Variant meta);
 	void copy_voxel_metadata_in_area(Ref<VoxelBuffer> src_buffer, Box3i src_box, Vector3i dst_origin);
 	void copy_voxel_metadata(const VoxelBuffer &src_buffer);
 
@@ -449,7 +449,6 @@ private:
 	void _b_copy_channel_from(Ref<VoxelBuffer> other, unsigned int channel);
 	void _b_copy_channel_from_area(Ref<VoxelBuffer> other, Vector3 src_min, Vector3 src_max, Vector3 dst_min, unsigned int channel);
 	void _b_fill_area(uint64_t defval, Vector3 min, Vector3 max, unsigned int channel_index) { fill_area(defval, Vector3i(min), Vector3i(max), channel_index); }
-	void _b_set_voxels_in_line(uint64_t defval, Vector3 min, Vector3 max, unsigned int channel_index) { set_voxels_in_line(defval, Vector3i(min), Vector3i(max), channel_index); }
 	void _b_set_voxel_f(real_t value, int x, int y, int z, unsigned int channel) { set_voxel_f(value, x, y, z, channel); }
 	void _b_set_voxel_v(uint64_t value, Vector3 pos, unsigned int channel_index = 0) { set_voxel(value, pos.x, pos.y, pos.z, channel_index); }
 	void _b_downscale_to(Ref<VoxelBuffer> dst, Vector3 src_min, Vector3 src_max, Vector3 dst_min) const;
@@ -457,6 +456,7 @@ private:
 	void _b_set_voxel_metadata(Vector3 pos, Variant meta) { set_voxel_metadata(Vector3i(pos), meta); }
 	void _b_for_each_voxel_metadata_in_area(Ref<FuncRef> callback, Vector3 min_pos, Vector3 max_pos);
 	void _b_clear_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos);
+	void _b_set_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos,Variant meta);
 	void _b_copy_voxel_metadata_in_area(Ref<VoxelBuffer> src_buffer, Vector3 src_min_pos, Vector3 src_max_pos, Vector3 dst_pos);
 
 private:
