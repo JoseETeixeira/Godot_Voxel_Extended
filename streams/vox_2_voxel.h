@@ -31,8 +31,8 @@ class voxx : public Reference {
 				std::vector<uint8_t> color_indexes;
 				FixedArray<Color8, 256> palette;
 				bool has_palette;
-				
-				std::vector<Vox*>output ;
+
+				std::vector<Ref<Vox>>output ;
 
 				int get_size(){
 					return output.size();
@@ -42,9 +42,9 @@ class voxx : public Reference {
 				static void _bind_methods();
 			};
 
-		Data* dados;
+		Ref<Data> dados;
 
-		
+
 
 
 		Dictionary get_data(int i){
@@ -53,7 +53,7 @@ class voxx : public Reference {
 			retorno["y"] = dados->output[i]->y;
 			retorno["z"] = dados->output[i]->z;
 			retorno["color"] = Color8(dados->output[i]->color).to_u32();
-			
+
 			return retorno;
 		}
 
@@ -63,7 +63,7 @@ class voxx : public Reference {
 
 
 		// TODO Eventually, will need specialized loaders, because data structures may vary and memory shouldn't be wasted
-		Error load_vox(const String &fpath, Data* voxx);
+		Error load_vox(const String &fpath, Ref<Data> voxx);
 
 	private:
 		static void _bind_methods();
@@ -75,8 +75,8 @@ class Vox2Voxel : public Reference {
 
 public:
 	void load_from_file(String fpath);
-	voxx* vox;	
-	voxx* get_voxx();
+	Ref<voxx> vox;
+	Ref<voxx>  get_voxx();
 
 	// TODO Have chunked loading for better memory usage
 	// TODO Saving

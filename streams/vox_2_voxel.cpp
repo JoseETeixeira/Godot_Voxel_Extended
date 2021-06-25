@@ -4,7 +4,7 @@
 #include <core/dictionary.h>
 
 
-Error voxx::load_vox(const String &fpath, voxx::Data* data) {
+Error voxx::load_vox(const String &fpath, Ref<voxx::Data> data) {
 	const uint32_t PALETTE_SIZE = 256;
 
 	uint32_t g_default_palette[PALETTE_SIZE] = {
@@ -86,7 +86,8 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 				ERR_FAIL_COND_V(y >= static_cast<uint32_t>(data->size.y), ERR_PARSE_ERROR);
 				ERR_FAIL_COND_V(z >= static_cast<uint32_t>(data->size.z), ERR_PARSE_ERROR);
 				data->color_indexes[Vector3i(x, y, z).get_zxy_index(data->size)] = c;
-				voxx::Vox *voxel = memnew(voxx::Vox());
+				Ref<voxx::Vox> voxel;
+				voxel.instance();
 				voxel->color_index = c;
 				voxel->x = x;
 				voxel->y = y;
@@ -112,8 +113,8 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 			// Ignore chunk
 			f->seek(f->get_position() + chunk_size);
 		}
-		
-		
+
+
 	}
 	for(uint32_t i=0;i<data->output.size();i++){
 
@@ -121,8 +122,8 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 			data->output[i]->color = data->palette[data->output[i]->color_index];
 		}
 	}
-	
-	
+
+
 	return OK;
 
 }
@@ -142,14 +143,14 @@ void voxx::Data::_bind_methods() {
 
 void Vox2Voxel::load_from_file(String fpath) {
 
-	vox = memnew(voxx());
-	vox->dados = memnew(voxx::Data());
+	vox.instance();
+	vox->dados.instance();
 
 	Error err = vox->load_vox(fpath,vox->dados);
 
 }
 
-voxx* Vox2Voxel::get_voxx(){
+Ref<voxx> Vox2Voxel::get_voxx(){
 	return vox;
 }
 
