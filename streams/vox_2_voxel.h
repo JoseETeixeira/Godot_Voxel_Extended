@@ -56,7 +56,7 @@ class voxx : public Reference {
 
 
 		// TODO Eventually, will need specialized loaders, because data structures may vary and memory shouldn't be wasted
-		Error load_vox(const String &fpath, Data* voxx);
+		Error load_vox(const String &fpath, Data* voxx,float scale);
 
 	private:
 		static void _bind_methods();
@@ -67,7 +67,7 @@ class Vox2Voxel : public Reference {
 	GDCLASS(Vox2Voxel, Reference);
 
 public:
-	void load_from_file(String fpath);
+	void load_from_file(String fpath,float scale);
 	Ref<voxx> vox;
 	Ref<voxx>  get_voxx();
 

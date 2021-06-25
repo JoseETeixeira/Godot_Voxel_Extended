@@ -4,7 +4,7 @@
 #include <core/dictionary.h>
 
 
-Error voxx::load_vox(const String &fpath, voxx::Data* data) {
+Error voxx::load_vox(const String &fpath, voxx::Data* data,float scale) {
 	const uint32_t PALETTE_SIZE = 256;
 
 	uint32_t g_default_palette[PALETTE_SIZE] = {
@@ -88,9 +88,9 @@ Error voxx::load_vox(const String &fpath, voxx::Data* data) {
 				data->color_indexes[Vector3i(x, y, z).get_zxy_index(data->size)] = c;
 				voxx::Vox voxel;
 				voxel.color_index = c;
-				voxel.x = x;
-				voxel.y = y;
-				voxel.z = z;
+				voxel.x = x*scale;
+				voxel.y = y*scale;
+				voxel.z = z*scale;
 				data->output.push_back(voxel);
 			}
 
@@ -135,12 +135,12 @@ void voxx::_bind_methods() {
 
 
 
-void Vox2Voxel::load_from_file(String fpath) {
+void Vox2Voxel::load_from_file(String fpath,float scale) {
 
 	vox.instance();
 	vox->dados = memnew(voxx::Data());
 
-	Error err = vox->load_vox(fpath,vox->dados);
+	Error err = vox->load_vox(fpath,vox->dados,scale);
 
 }
 
@@ -149,6 +149,6 @@ Ref<voxx> Vox2Voxel::get_voxx(){
 }
 
 void Vox2Voxel::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("load_from_file", "fpath"), &Vox2Voxel::load_from_file);
+	ClassDB::bind_method(D_METHOD("load_from_file", "fpath","scale"), &Vox2Voxel::load_from_file);
 	ClassDB::bind_method(D_METHOD("get_voxx"), &Vox2Voxel::get_voxx);
 }
