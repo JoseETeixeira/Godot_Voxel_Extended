@@ -15,44 +15,37 @@ class VoxelBuffer;
 class voxx : public Reference {
 	GDCLASS(voxx, Reference);
 	public:
-		class Vox : public Reference {
-			GDCLASS(Vox, Reference);
-			public:
+		struct Vox{
 				int x;
 				int y;
 				int z;
 				Color8 color;
 				unsigned int color_index;
 		};
-		class Data : public Reference {
-			GDCLASS(Data, Reference);
-			public:
+		struct Data{
 				Vector3i size;
 				std::vector<uint8_t> color_indexes;
 				FixedArray<Color8, 256> palette;
 				bool has_palette;
 
-				std::vector<Ref<Vox>>output ;
+				std::vector<Vox>output ;
 
 				int get_size(){
 					return output.size();
 				}
+		};
 
-			private:
-				static void _bind_methods();
-			};
-
-		Ref<Data> dados;
+		Data* dados;
 
 
 
 
 		Dictionary get_data(int i){
 			Dictionary retorno;
-			retorno["x"] = dados->output[i]->x;
-			retorno["y"] = dados->output[i]->y;
-			retorno["z"] = dados->output[i]->z;
-			retorno["color"] = Color8(dados->output[i]->color).to_u32();
+			retorno["x"] = dados->output[i].x;
+			retorno["y"] = dados->output[i].y;
+			retorno["z"] = dados->output[i].z;
+			retorno["color"] = Color8(dados->output[i].color).to_u32();
 
 			return retorno;
 		}
@@ -63,7 +56,7 @@ class voxx : public Reference {
 
 
 		// TODO Eventually, will need specialized loaders, because data structures may vary and memory shouldn't be wasted
-		Error load_vox(const String &fpath, Ref<Data> voxx);
+		Error load_vox(const String &fpath, Data* voxx);
 
 	private:
 		static void _bind_methods();
