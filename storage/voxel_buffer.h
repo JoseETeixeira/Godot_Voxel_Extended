@@ -125,6 +125,8 @@ public:
 	void fill_area(uint64_t defval, Vector3i min, Vector3i max, unsigned int channel_index = 0);
 	void fill_area_f(float fvalue, Vector3i min, Vector3i max, unsigned int channel_index);
 	void fill_f(real_t value, unsigned int channel = 0);
+	//Replace voxels in area
+	void replace_voxel_in_area(Box3i box,uint64_t ovalue,uint64_t value, unsigned int channel_index = 0);
 
 	bool is_uniform(unsigned int channel_index) const;
 
@@ -392,6 +394,8 @@ public:
 	// This returns that scale for a given depth configuration.
 	static float get_sdf_quantization_scale(Depth d);
 
+
+
 	// Metadata
 
 	Variant get_block_metadata() const { return _block_metadata; }
@@ -455,6 +459,7 @@ private:
 	Variant _b_get_voxel_metadata(Vector3 pos) const { return get_voxel_metadata(Vector3i(pos)); }
 	void _b_set_voxel_metadata(Vector3 pos, Variant meta) { set_voxel_metadata(Vector3i(pos), meta); }
 	void _b_for_each_voxel_metadata_in_area(Ref<FuncRef> callback, Vector3 min_pos, Vector3 max_pos);
+	void _b_replace_voxel_in_area(Vector3 min_pos, Vector3 max_pos,uint64_t ovalue,uint64_t value, unsigned int channel_index = 0);
 	void _b_clear_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos);
 	void _b_set_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos,Variant meta);
 	void _b_copy_voxel_metadata_in_area(Ref<VoxelBuffer> src_buffer, Vector3 src_min_pos, Vector3 src_max_pos, Vector3 dst_pos);

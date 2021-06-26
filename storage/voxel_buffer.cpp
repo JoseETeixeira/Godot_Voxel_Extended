@@ -400,6 +400,73 @@ void VoxelBuffer::set_voxel_metadata_in_area(Box3i box, Variant meta) {
 	}
 }
 
+void VoxelBuffer::replace_voxel_in_area(Box3i box,uint64_t ovalue,uint64_t value, unsigned int channel_index) {
+	ERR_FAIL_INDEX(channel_index, MAX_CHANNELS);
+	box.pos.clamp_to(Vector3i(0, 0, 0), _size + Vector3i(1, 1, 1));
+	box.size.clamp_to(Vector3i(0, 0, 0), _size + Vector3i(1, 1, 1));
+
+	Channel &channel = _channels[channel_index];
+	value = clamp_value_for_depth(value, channel.depth);
+
+	if (channel.data == nullptr) {
+		if (channel.defval == value) {
+			return;
+		} else {
+			create_channel(channel_index, _size, channel.defval);
+		}
+	}
+
+	Vector3i pos;
+	const unsigned int volume = get_volume();
+	for (pos.z = box.pos.z; pos.z < box.size.z; ++pos.z) {
+		for (pos.x = box.pos.x; pos.x <  box.size.x; ++pos.x) {
+			const unsigned int dst_ri = get_index(pos.x, pos.y, pos.z);
+			CRASH_COND(dst_ri >= volume);
+
+			switch (channel.depth) {
+				case DEPTH_8_BIT:
+					// Fill row by row
+					for (int i = 0; i < box.size.y; ++i) {
+						if(((uint8_t *)channel.data)[dst_ri + i]==ovalue){
+							((uint8_t *)channel.data)[dst_ri + i] = value;
+						}
+
+					}
+					break;
+
+				case DEPTH_16_BIT:
+					for (int i = 0; i < box.size.y; ++i) {
+						if(((uint16_t *)channel.data)[dst_ri + i]==ovalue){
+							((uint16_t *)channel.data)[dst_ri + i] = value;
+						}
+
+					}
+					break;
+
+				case DEPTH_32_BIT:
+					for (int i = 0; i < box.size.y; ++i) {
+						if(((uint32_t *)channel.data)[dst_ri + i]==ovalue){
+							((uint32_t *)channel.data)[dst_ri + i] = value;
+						}
+					}
+					break;
+
+				case DEPTH_64_BIT:
+					for (int i = 0; i < box.size.y; ++i) {
+						if(((uint64_t *)channel.data)[dst_ri + i]==ovalue){
+							((uint64_t *)channel.data)[dst_ri + i] = value;
+						}
+					}
+					break;
+
+				default:
+					CRASH_NOW();
+					break;
+			}
+		}
+	}
+}
+
 void VoxelBuffer::fill_area_f(float fvalue, Vector3i min, Vector3i max, unsigned int channel_index) {
 	ERR_FAIL_INDEX(channel_index, MAX_CHANNELS);
 	const Channel &channel = _channels[channel_index];
@@ -907,6 +974,8 @@ void VoxelBuffer::_bind_methods() {
 			&VoxelBuffer::_b_clear_voxel_metadata_in_area);
 	ClassDB::bind_method(D_METHOD("set_voxel_metadata_in_area", "min_pos", "max_pos","meta"),
 			&VoxelBuffer::_b_set_voxel_metadata_in_area);
+	ClassDB::bind_method(D_METHOD("replace_voxel_in_area", "min_pos", "max_pos","value","ovalue","channel_index"),
+			&VoxelBuffer::_b_replace_voxel_in_area);
 	ClassDB::bind_method(
 			D_METHOD("copy_voxel_metadata_in_area", "src_buffer", "src_min_pos", "src_max_pos", "dst_min_pos"),
 			&VoxelBuffer::_b_copy_voxel_metadata_in_area);
@@ -961,8 +1030,15 @@ void VoxelBuffer::_b_clear_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_p
 void VoxelBuffer::_b_set_voxel_metadata_in_area(Vector3 min_pos, Vector3 max_pos, Variant meta) {
 	set_voxel_metadata_in_area(Box3i::from_min_max(Vector3i(min_pos), Vector3i(max_pos)),meta);
 }
+
+void VoxelBuffer::_b_replace_voxel_in_area(Vector3 min_pos, Vector3 max_pos,uint64_t ovalue,uint64_t value, unsigned int channel_index) {
+	replace_voxel_in_area(Box3i::from_min_max(Vector3i(min_pos), Vector3i(max_pos)),value,ovalue,channel_index);
+}
+
 void VoxelBuffer::_b_copy_voxel_metadata_in_area(Ref<VoxelBuffer> src_buffer, Vector3 src_min_pos, Vector3 src_max_pos,
 		Vector3 dst_pos) {
 	copy_voxel_metadata_in_area(
 			src_buffer, Box3i::from_min_max(Vector3i(src_min_pos), Vector3i(src_max_pos)), dst_pos);
 }
+
+
