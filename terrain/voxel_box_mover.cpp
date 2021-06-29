@@ -204,7 +204,7 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 			}
 		}
 	}
-	if(p_terrain->get_child_count()>0){
+	/*if(p_terrain->get_child_count()>0){
 		for (int it = 0; it < p_terrain->get_child_count(); it++) {
 			Object *obj = p_terrain->get_child(it);
 			MeshInstance *sb = Object::cast_to<MeshInstance>(obj);
@@ -221,7 +221,7 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 			}
 
 		}
-	}
+	}*/
 
 	// Calculate collisions (narrow phase)
 	const Vector3 slided_motion = ::get_motion(box, motion, potential_boxes);
