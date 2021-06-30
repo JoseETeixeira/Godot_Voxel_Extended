@@ -237,14 +237,17 @@ void VoxelBoxMover::set_collision_mask(uint32_t mask) {
 }
 
 void VoxelBoxMover::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("get_motion", "pos", "motion", "aabb", "terrain"), &VoxelBoxMover::_b_get_motion);
+	ClassDB::bind_method(D_METHOD("get_motion", "pos", "motion", "aabb"), &VoxelBoxMover::_b_get_motion);
 	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &VoxelBoxMover::set_collision_mask);
+	ClassDB::bind_method(D_METHOD("set_terrain", "terrain"), &VoxelBoxMover::_b_set_terrain);
 	ClassDB::bind_method(D_METHOD("get_collision_mask"), &VoxelBoxMover::get_collision_mask);
 }
 
-Vector3 VoxelBoxMover::_b_get_motion(Vector3 pos, Vector3 motion, AABB aabb, Node *terrain_node) {
-	ERR_FAIL_COND_V(terrain_node == nullptr, Vector3());
-	VoxelTerrain *terrain = Object::cast_to<VoxelTerrain>(terrain_node);
-	ERR_FAIL_COND_V(terrain == nullptr, Vector3());
+Vector3 VoxelBoxMover::_b_get_motion(Vector3 pos, Vector3 motion, AABB aabb) {
 	return get_motion(pos, motion, aabb, terrain);
+}
+
+void VoxelBoxMover::_b_set_terrain(Node *terrain_node){
+	VoxelTerrain *p_terrain = Object::cast_to<VoxelTerrain>(terrain_node);
+	terrain = p_terrain;
 }

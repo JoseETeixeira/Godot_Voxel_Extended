@@ -16,7 +16,11 @@ public:
 	inline uint32_t get_collision_mask() const { return _collision_mask; }
 
 private:
-	Vector3 _b_get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, Node *p_terrain_node);
+	Vector3 _b_get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb);
+
+	void _b_set_terrain(Node *p_terrain_node);
+
+	VoxelTerrain* terrain;
 
 	static void _bind_methods();
 
