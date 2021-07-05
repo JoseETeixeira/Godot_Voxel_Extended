@@ -5,6 +5,7 @@
 #include <scene/3d/mesh_instance.h>
 #include "../../scene/resources/convex_polygon_shape.h"
 #include "../../scene/3d/physics_body.h"
+#include "../../core/math/a_star.h"
 #include "../util/godot/funcs.h"
 #include <vector>
 
@@ -232,12 +233,88 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 	return world_slided_motion;
 }
 
+PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vector3 p_destination, VoxelTerrain *p_terrain) {
+	ERR_FAIL_COND_V(p_terrain == nullptr, PoolVector<Vector3> ());
+	// The mesher is required to know how collisions should be processed
+	ERR_FAIL_COND_V(p_terrain->get_mesher().is_null(), PoolVector<Vector3> ());
+	// Transform to local in case the volume is transformed
+	const Transform to_world = p_terrain->get_global_transform();
+	const Transform to_local = to_world.affine_inverse();
+	const Vector3 pos = to_local.xform(p_pos);
+	const Vector3 destination = to_local.xform(p_destination);
+	std::vector<Vector3> potential_points;
+
+	// Collect potential collisions with the terrain (broad phase)
+
+	const VoxelDataMap &voxels = p_terrain->get_storage();
+
+	const int min_x = int(Math::floor(pos.x));
+	const int min_y = int(Math::floor(pos.y));
+	const int min_z = int(Math::floor(pos.z));
+
+	const int max_x = int(Math::ceil(destination.x));
+	const int max_y = int(Math::ceil(destination.y));
+	const int max_z = int(Math::ceil(destination.z));
+
+	Vector3i i(min_x, min_y, min_z);
+
+	Ref<VoxelMesherBlocky> mesher_blocky;
+
+	if (try_get_as(p_terrain->get_mesher(), mesher_blocky)) {
+		Ref<VoxelLibrary> library_ref = mesher_blocky->get_library();
+		ERR_FAIL_COND_V_MSG(library_ref.is_null(),PoolVector<Vector3>(), "VoxelMesherBlocky has no library assigned");
+		VoxelLibrary &library = **library_ref;
+		const int channel = VoxelBuffer::CHANNEL_TYPE;
+
+		for (i.z = min_z; i.z < max_z; ++i.z) {
+			for (i.y = min_y; i.y < max_y; ++i.y) {
+				for (i.x = min_x; i.x < max_x; ++i.x) {
+					const int type_id = voxels.get_voxel(i, channel);
+					if (library.has_voxel(type_id)) {
+						const Voxel &voxel_type = library.get_voxel_const(type_id);
+
+						if ((voxel_type.get_collision_mask() & _collision_mask) == 0) {
+							continue;
+						}
+
+
+						const std::vector<AABB> &local_boxes = voxel_type.get_collision_aabbs();
+
+						for (auto it = local_boxes.begin(); it != local_boxes.end(); ++it) {
+							AABB world_box = *it;
+							world_box.position += i.to_vec3();
+							potential_points.push_back(world_box.position);
+						}
+
+						
+
+					}
+
+				}
+			}
+		}
+
+
+	} 
+
+	AStar *astar = new AStar();
+	for (uint32_t p =0;p<potential_points.size();p++){
+		astar->add_point(p,potential_points[p]);
+		if (p>0){
+			astar->connect_points(p,p-1);
+		}
+	}
+	
+	return astar->get_point_path(0,potential_points.size()-1);
+}
+
 void VoxelBoxMover::set_collision_mask(uint32_t mask) {
 	_collision_mask = mask;
 }
 
 void VoxelBoxMover::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_motion", "pos", "motion", "aabb"), &VoxelBoxMover::_b_get_motion);
+	ClassDB::bind_method(D_METHOD("get_points_to_destination", "pos","destination"), &VoxelBoxMover::_b_get_points_to_destination);
 	ClassDB::bind_method(D_METHOD("set_collision_mask", "mask"), &VoxelBoxMover::set_collision_mask);
 	ClassDB::bind_method(D_METHOD("set_terrain", "terrain"), &VoxelBoxMover::_b_set_terrain);
 	ClassDB::bind_method(D_METHOD("get_collision_mask"), &VoxelBoxMover::get_collision_mask);
@@ -250,4 +327,8 @@ Vector3 VoxelBoxMover::_b_get_motion(Vector3 pos, Vector3 motion, AABB aabb) {
 void VoxelBoxMover::_b_set_terrain(Node *terrain_node){
 	VoxelTerrain *p_terrain = Object::cast_to<VoxelTerrain>(terrain_node);
 	terrain = p_terrain;
+}
+
+PoolVector<Vector3> VoxelBoxMover::_b_get_points_to_destination(Vector3 pos,Vector3 destination){
+	return get_points_to_destination(pos,destination,terrain);
 }
