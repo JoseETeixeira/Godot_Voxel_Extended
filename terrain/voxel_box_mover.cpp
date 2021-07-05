@@ -242,8 +242,8 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 	const Transform to_local = to_world.affine_inverse();
 	const Vector3 pos = to_local.xform(p_pos);
 	const Vector3 destination = to_local.xform(p_destination);
-	AABB p_aabb = AABB(pos,Vector3(1,1,1));
-	PoolVector<Vector3> *potential_points = new PoolVector<Vector3>();
+	AABB p_aabb = AABB(Vector3(-0.4, -0.9, -0.4), Vector3(0.8, 1.8, 0.8));
+	PoolVector<Vector3> *potential_points = memnew(PoolVector<Vector3>());
 	const AABB aabb = Transform(to_local.basis, Vector3()).xform(p_aabb);
 
 	const AABB box(aabb.position + pos, aabb.size);
@@ -280,26 +280,8 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 			for (i.y = min_y; i.y < max_y; ++i.y) {
 				for (i.x = min_x; i.x < max_x; ++i.x) {
 					const int type_id = voxels.get_voxel(i, channel);
-					if (library.has_voxel(type_id)) {
-						const Voxel &voxel_type = library.get_voxel_const(type_id);
-
-						if ((voxel_type.get_collision_mask() & _collision_mask) == 0) {
-							continue;
-						}
-
-						if (type_id == 0 || type_id ==8 || type_id == 2){//TODO: DONT HARDCODE
-							const std::vector<AABB> &local_boxes = voxel_type.get_collision_aabbs();
-
-							for (auto it = local_boxes.begin(); it != local_boxes.end(); ++it) {
-								AABB world_box = *it;
-								world_box.position += i.to_vec3();
-								potential_points->push_back(world_box.position);
-							}
-
-						}
-						
-						
-
+					if(type_id == 0){
+						potential_points->push_back( to_world.basis.xform(i.to_vec3()));
 					}
 
 				}
@@ -307,10 +289,11 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 		}
 
 
-	} 
-	
+	}
 
-	return *potential_points;
+
+    return *potential_points;
+
 }
 
 void VoxelBoxMover::set_collision_mask(uint32_t mask) {
