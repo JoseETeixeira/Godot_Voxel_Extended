@@ -18,7 +18,7 @@ bool VoxelToolLodTerrain::is_area_editable(const Box3i &box) const {
 }
 
 template <typename Volume_F>
-float get_sdf_interpolated(Volume_F &f, Vector3 pos) {
+float get_sdf_interpolated(const Volume_F &f, Vector3 pos) {
 	const Vector3i c = Vector3i::from_floored(pos);
 
 	const float s000 = f(Vector3i(c.x, c.y, c.z));
@@ -39,7 +39,7 @@ float get_sdf_interpolated(Volume_F &f, Vector3 pos) {
 // The segment may be adjusted internally if it does not contain a zero-crossing of the
 template <typename Volume_F>
 float approximate_distance_to_isosurface_binary_search(
-		Volume_F &f, Vector3 pos0, Vector3 dir, float d1, int iterations) {
+		const Volume_F &f, Vector3 pos0, Vector3 dir, float d1, int iterations) {
 	float d0 = 0.f;
 	float sdf0 = get_sdf_interpolated(f, pos0);
 	// The position given as argument may be a rough approximation coming from the middle-phase,
@@ -83,6 +83,7 @@ Ref<VoxelRaycastResult> VoxelToolLodTerrain::raycast(
 		Vector3 pos, Vector3 dir, float max_distance, uint32_t collision_mask) {
 	// TODO Transform input if the terrain is rotated
 	// TODO Implement broad-phase on blocks to minimize locking and increase performance
+	// TODO Implement reverse raycast? (going from inside ground to air, could be useful for undigging)
 
 	struct RaycastPredicate {
 		const VoxelDataMap &map;
@@ -128,7 +129,7 @@ Ref<VoxelRaycastResult> VoxelToolLodTerrain::raycast(
 			struct VolumeSampler {
 				const VoxelDataMap &map;
 
-				inline float operator()(const Vector3i &pos) {
+				inline float operator()(const Vector3i &pos) const {
 					return map.get_voxel_f(pos, VoxelBuffer::CHANNEL_SDF);
 				}
 			};
@@ -172,6 +173,17 @@ void VoxelToolLodTerrain::do_sphere(Vector3 center, float radius) {
 	_post_edit(box);
 }
 
+float VoxelToolLodTerrain::get_voxel_f_interpolated(Vector3 position) const {
+	ERR_FAIL_COND_V(_terrain == nullptr, 0);
+	const VoxelDataMap *map = _map;
+	const int channel = get_channel();
+	// TODO Optimization: is it worth a making a fast-path for this?
+	return get_sdf_interpolated([map, channel](Vector3i ipos) {
+		return map->get_voxel_f(ipos, channel);
+	},
+			position);
+}
+
 uint64_t VoxelToolLodTerrain::_get_voxel(Vector3i pos) const {
 	ERR_FAIL_COND_V(_terrain == nullptr, 0);
 	return _map->get_voxel(pos, _channel);
@@ -210,4 +222,5 @@ void VoxelToolLodTerrain::_bind_methods() {
 			&VoxelToolLodTerrain::set_raycast_binary_search_iterations);
 	ClassDB::bind_method(D_METHOD("get_raycast_binary_search_iterations"),
 			&VoxelToolLodTerrain::get_raycast_binary_search_iterations);
+	ClassDB::bind_method(D_METHOD("get_voxel_f_interpolated"), &VoxelToolLodTerrain::get_voxel_f_interpolated);
 }
