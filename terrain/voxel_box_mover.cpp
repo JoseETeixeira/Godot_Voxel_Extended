@@ -242,19 +242,29 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 	const Transform to_local = to_world.affine_inverse();
 	const Vector3 pos = to_local.xform(p_pos);
 	const Vector3 destination = to_local.xform(p_destination);
-	std::vector<Vector3> potential_points;
+	AABB p_aabb = AABB(pos,Vector3(1,1,1));
+	PoolVector<Vector3> *potential_points = new PoolVector<Vector3>();
+	const AABB aabb = Transform(to_local.basis, Vector3()).xform(p_aabb);
+
+	const AABB box(aabb.position + pos, aabb.size);
+	const AABB expanded_box = expand_with_vector(box, destination-pos);
+
+	static thread_local std::vector<AABB> s_colliding_boxes;
+	std::vector<AABB> &potential_boxes = s_colliding_boxes;
+	potential_boxes.clear();
 
 	// Collect potential collisions with the terrain (broad phase)
 
 	const VoxelDataMap &voxels = p_terrain->get_storage();
 
-	const int min_x = int(Math::floor(pos.x));
-	const int min_y = int(Math::floor(pos.y));
-	const int min_z = int(Math::floor(pos.z));
+	const int min_x = int(Math::floor(expanded_box.position.x));
+	const int min_y = int(Math::floor(expanded_box.position.y));
+	const int min_z = int(Math::floor(expanded_box.position.z));
 
-	const int max_x = int(Math::ceil(destination.x));
-	const int max_y = int(Math::ceil(destination.y));
-	const int max_z = int(Math::ceil(destination.z));
+	const Vector3 expanded_box_end = expanded_box.position + expanded_box.size;
+	const int max_x = int(Math::ceil(expanded_box_end.x));
+	const int max_y = int(Math::ceil(expanded_box_end.y));
+	const int max_z = int(Math::ceil(expanded_box_end.z));
 
 	Vector3i i(min_x, min_y, min_z);
 
@@ -277,15 +287,17 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 							continue;
 						}
 
+						if (type_id == 0 || type_id ==8 || type_id == 2){//TODO: DONT HARDCODE
+							const std::vector<AABB> &local_boxes = voxel_type.get_collision_aabbs();
 
-						const std::vector<AABB> &local_boxes = voxel_type.get_collision_aabbs();
+							for (auto it = local_boxes.begin(); it != local_boxes.end(); ++it) {
+								AABB world_box = *it;
+								world_box.position += i.to_vec3();
+								potential_points->push_back(world_box.position);
+							}
 
-						for (auto it = local_boxes.begin(); it != local_boxes.end(); ++it) {
-							AABB world_box = *it;
-							world_box.position += i.to_vec3();
-							potential_points.push_back(world_box.position);
 						}
-
+						
 						
 
 					}
@@ -296,16 +308,9 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 
 
 	} 
-
-	AStar *astar = new AStar();
-	for (uint32_t p =0;p<potential_points.size();p++){
-		astar->add_point(p,potential_points[p]);
-		if (p>0){
-			astar->connect_points(p,p-1);
-		}
-	}
 	
-	return astar->get_point_path(0,potential_points.size()-1);
+
+	return *potential_points;
 }
 
 void VoxelBoxMover::set_collision_mask(uint32_t mask) {
