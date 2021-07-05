@@ -294,6 +294,7 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 
     return *potential_points;
 
+
 }
 
 void VoxelBoxMover::set_collision_mask(uint32_t mask) {
