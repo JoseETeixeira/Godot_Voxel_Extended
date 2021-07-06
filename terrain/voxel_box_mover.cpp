@@ -243,15 +243,11 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 	const Vector3 pos = to_local.xform(p_pos);
 	const Vector3 destination = to_local.xform(p_destination);
 	AABB p_aabb = AABB(Vector3(-0.4, -0.9, -0.4), Vector3(0.8, 1.8, 0.8));
-	PoolVector<Vector3> *potential_points = memnew(PoolVector<Vector3>());
+	AStar *potential_points = memnew(AStar());
 	const AABB aabb = Transform(to_local.basis, Vector3()).xform(p_aabb);
 
 	const AABB box(aabb.position + pos, aabb.size);
 	const AABB expanded_box = expand_with_vector(box, destination-pos);
-
-	static thread_local std::vector<AABB> s_colliding_boxes;
-	std::vector<AABB> &potential_boxes = s_colliding_boxes;
-	potential_boxes.clear();
 
 	// Collect potential collisions with the terrain (broad phase)
 
@@ -270,29 +266,62 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 
 	Ref<VoxelMesherBlocky> mesher_blocky;
 
+	int index = 0;
+
 	if (try_get_as(p_terrain->get_mesher(), mesher_blocky)) {
 		Ref<VoxelLibrary> library_ref = mesher_blocky->get_library();
 		ERR_FAIL_COND_V_MSG(library_ref.is_null(),PoolVector<Vector3>(), "VoxelMesherBlocky has no library assigned");
 		VoxelLibrary &library = **library_ref;
 		const int channel = VoxelBuffer::CHANNEL_TYPE;
-
+		Vector3 start_position = Vector3(min_x,min_y,min_z);
 		for (i.z = min_z; i.z < max_z; ++i.z) {
 			for (i.y = min_y; i.y < max_y; ++i.y) {
 				for (i.x = min_x; i.x < max_x; ++i.x) {
 					const int type_id = voxels.get_voxel(i, channel);
-					if(type_id == 0){
-						potential_points->push_back( to_world.basis.xform(i.to_vec3()));
+					if (library.has_voxel(type_id)) {
+						const Voxel &voxel_type = library.get_voxel_const(type_id);
+
+						if ((voxel_type.get_collision_mask() & _collision_mask) == 0) {
+							Vector3 current_point = i.to_vec3();
+							potential_points->add_point ( index,to_world.basis.xform(current_point),current_point.distance_to(start_position));
+							if (index > 0){
+								for (int aux_index = 0;aux_index<index;aux_index++){
+									if (potential_points->has_point(aux_index) && potential_points->has_point(index)){
+										potential_points->connect_points(aux_index,index,true);
+									}
+
+								}
+
+							}
+							index +=1;
+						}
+
+
 					}
+
+
+
+
+
 
 				}
 			}
 		}
 
 
+
+
+	}
+
+	if (index > 0){
+		return potential_points->get_point_path(0,index-1);
+	}else{
+		return potential_points->get_point_path(index,index);
 	}
 
 
-    return *potential_points;
+
+
 
 
 }
