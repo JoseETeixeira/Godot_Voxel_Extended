@@ -240,6 +240,9 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 	// Transform to local in case the volume is transformed
 	Vector<Vector3> potential_points;
 
+	const Transform to_world = p_terrain->get_global_transform();
+	const Transform to_local = to_world.affine_inverse();
+
 	const VoxelDataMap &voxels = p_terrain->get_storage();
 
 	Vector3 box_pos = Vector3(box.pos.x,box.pos.y,box.pos.z);
@@ -250,7 +253,7 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 
 	
 
-	const Vector3 expanded_box_end = box_pos + Vector3(64,64,64);
+	const Vector3 expanded_box_end = box_pos + Vector3(box.size.x,box.size.y,box.size.z);
 	const int max_x = int(Math::ceil(expanded_box_end.x));
 	const int max_y = int(Math::ceil(expanded_box_end.y));
 	const int max_z = int(Math::ceil(expanded_box_end.z));
@@ -261,9 +264,6 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 
 	Ref<VoxelMesherBlocky> mesher_blocky;
 
-	int index = 0;
-	Vector3 last_point = Vector3(min_x, min_y, min_z);
-
 	if (try_get_as(p_terrain->get_mesher(), mesher_blocky)) {
 		Ref<VoxelLibrary> library_ref = mesher_blocky->get_library();
 		ERR_FAIL_COND_V_MSG(library_ref.is_null(), Vector<Vector3>(), "VoxelMesherBlocky has no library assigned");
@@ -273,11 +273,9 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 		for (i.z = min_z; i.z < max_z; ++i.z) {
 			for (i.y = min_y; i.y < max_y; ++i.y) {
 				for (i.x = min_x; i.x < max_x; ++i.x) {
+			
 					Vector3 current_point = i.to_vec3();
-					if(current_point.distance_to(last_point)<=2){
-						last_point = i.to_vec3();
-						potential_points.push_back ( current_point);
-					}
+					potential_points.push_back ( to_world.basis.xform(current_point));
 					
 				}
 			}
