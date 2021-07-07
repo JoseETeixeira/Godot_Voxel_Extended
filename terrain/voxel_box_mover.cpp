@@ -233,72 +233,52 @@ Vector3 VoxelBoxMover::get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb, 
 	return world_slided_motion;
 }
 
-PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vector3 p_destination, VoxelTerrain *p_terrain) {
-	ERR_FAIL_COND_V(p_terrain == nullptr, PoolVector<Vector3> ());
+Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain *p_terrain) {
+	ERR_FAIL_COND_V(p_terrain == nullptr, Vector<Vector3>());
 	// The mesher is required to know how collisions should be processed
-	ERR_FAIL_COND_V(p_terrain->get_mesher().is_null(), PoolVector<Vector3> ());
+	ERR_FAIL_COND_V(p_terrain->get_mesher().is_null(),Vector<Vector3>());
 	// Transform to local in case the volume is transformed
-	const Transform to_world = p_terrain->get_global_transform();
-	const Transform to_local = to_world.affine_inverse();
-	const Vector3 pos = to_local.xform(p_pos);
-	const Vector3 destination = to_local.xform(p_destination);
-	AABB p_aabb = AABB(Vector3(-0.4, -0.9, -0.4), Vector3(0.8, 1.8, 0.8));
-	AStar *potential_points = memnew(AStar());
-	const AABB aabb = Transform(to_local.basis, Vector3()).xform(p_aabb);
-
-	const AABB box(aabb.position + pos, aabb.size);
-	const AABB expanded_box = expand_with_vector(box, destination-pos);
-
-	// Collect potential collisions with the terrain (broad phase)
+	Vector<Vector3> potential_points;
 
 	const VoxelDataMap &voxels = p_terrain->get_storage();
 
-	const int min_x = int(Math::floor(expanded_box.position.x));
-	const int min_y = int(Math::floor(expanded_box.position.y));
-	const int min_z = int(Math::floor(expanded_box.position.z));
+	Vector3 box_pos = Vector3(box.pos.x,box.pos.y,box.pos.z);
 
-	const Vector3 expanded_box_end = expanded_box.position + expanded_box.size;
+	const int min_x = int(Math::floor(box_pos.x));
+	const int min_y = int(Math::floor(box_pos.y));
+	const int min_z = int(Math::floor(box_pos.z));
+
+	
+
+	const Vector3 expanded_box_end = box_pos + Vector3(64,64,64);
 	const int max_x = int(Math::ceil(expanded_box_end.x));
 	const int max_y = int(Math::ceil(expanded_box_end.y));
 	const int max_z = int(Math::ceil(expanded_box_end.z));
 
 	Vector3i i(min_x, min_y, min_z);
 
+	
+
 	Ref<VoxelMesherBlocky> mesher_blocky;
 
 	int index = 0;
-	Vector3 start_position = to_world.basis.xform(Vector3(min_x,min_y,min_z));
+	Vector3 last_point = Vector3(min_x, min_y, min_z);
 
 	if (try_get_as(p_terrain->get_mesher(), mesher_blocky)) {
 		Ref<VoxelLibrary> library_ref = mesher_blocky->get_library();
-		ERR_FAIL_COND_V_MSG(library_ref.is_null(),PoolVector<Vector3>(), "VoxelMesherBlocky has no library assigned");
+		ERR_FAIL_COND_V_MSG(library_ref.is_null(), Vector<Vector3>(), "VoxelMesherBlocky has no library assigned");
 		VoxelLibrary &library = **library_ref;
 		const int channel = VoxelBuffer::CHANNEL_TYPE;
 
 		for (i.z = min_z; i.z < max_z; ++i.z) {
 			for (i.y = min_y; i.y < max_y; ++i.y) {
 				for (i.x = min_x; i.x < max_x; ++i.x) {
-					const int type_id = voxels.get_voxel(i, channel);
-					if (library.has_voxel(type_id)) {
-						const Voxel &voxel_type = library.get_voxel_const(type_id);
-
-						if ((voxel_type.get_collision_mask() & _collision_mask) == 0) {
-							Vector3 current_point = to_world.basis.xform(i.to_vec3());
-							potential_points->add_point ( index,current_point,current_point.distance_to(start_position));
-							if (index > 0){
-								for (int aux_index = 0;aux_index<index;aux_index++){
-
-									potential_points->connect_points(aux_index,index,true);
-
-								}
-
-							}
-							index +=1;
-						}
-
-
+					Vector3 current_point = i.to_vec3();
+					if(current_point.distance_to(last_point)<=2){
+						last_point = i.to_vec3();
+						potential_points.push_back ( current_point);
 					}
-
+					
 				}
 			}
 		}
@@ -307,7 +287,7 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 	}
 
 
-	return potential_points->get_point_path(potential_points->get_closest_point(start_position),potential_points->get_closest_point(expanded_box_end));
+	return potential_points;
 
 }
 
@@ -330,8 +310,10 @@ Vector3 VoxelBoxMover::_b_get_motion(Vector3 pos, Vector3 motion, AABB aabb) {
 void VoxelBoxMover::_b_set_terrain(Node *terrain_node){
 	VoxelTerrain *p_terrain = Object::cast_to<VoxelTerrain>(terrain_node);
 	terrain = p_terrain;
+	
 }
 
-PoolVector<Vector3> VoxelBoxMover::_b_get_points_to_destination(Vector3 pos,Vector3 destination){
-	return get_points_to_destination(pos,destination,terrain);
+Vector<Vector3> VoxelBoxMover::_b_get_points_to_destination(Vector3 pos,Vector3 destination){
+	
+	return get_points_to_destination( Box3i::from_min_max(Vector3i(pos.x,pos.y,pos.z), Vector3i(destination.x,destination.y,destination.z)),terrain);
 }

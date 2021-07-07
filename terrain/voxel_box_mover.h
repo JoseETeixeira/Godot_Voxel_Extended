@@ -12,7 +12,7 @@ class VoxelBoxMover : public Reference {
 	GDCLASS(VoxelBoxMover, Reference)
 public:
 	Vector3 get_motion(Vector3 pos, Vector3 motion, AABB aabb, VoxelTerrain *terrain);
-	PoolVector<Vector3> get_points_to_destination(Vector3 pos,Vector3 destination, VoxelTerrain *terrain);
+	Vector<Vector3> get_points_to_destination(Box3i box, VoxelTerrain *terrain);
 
 	void set_collision_mask(uint32_t mask);
 	inline uint32_t get_collision_mask() const { return _collision_mask; }
@@ -20,11 +20,12 @@ public:
 private:
 	Vector3 _b_get_motion(Vector3 p_pos, Vector3 p_motion, AABB p_aabb);
 
-	PoolVector<Vector3> _b_get_points_to_destination(Vector3 pos,Vector3 destination);
+	Vector<Vector3> _b_get_points_to_destination(Vector3 pos,Vector3 destination);
 
 	void _b_set_terrain(Node *p_terrain_node);
 
 	VoxelTerrain* terrain;
+
 
 	static void _bind_methods();
 
