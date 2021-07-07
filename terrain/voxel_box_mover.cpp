@@ -299,28 +299,15 @@ PoolVector<Vector3> VoxelBoxMover::get_points_to_destination(Vector3 p_pos,Vecto
 
 					}
 
-
-
-
-
-
 				}
 			}
 		}
-
-
 
 
 	}
 
 
 	return potential_points->get_point_path(potential_points->get_closest_point(start_position),potential_points->get_closest_point(expanded_box_end));
-
-
-
-
-
-
 
 }
 
