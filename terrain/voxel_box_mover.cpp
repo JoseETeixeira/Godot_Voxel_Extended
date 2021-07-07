@@ -245,7 +245,7 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 
 	const VoxelDataMap &voxels = p_terrain->get_storage();
 
-	Vector3 box_pos = Vector3(box.pos.x,box.pos.y,box.pos.z);
+	Vector3 box_pos = to_world.basis.xform(Vector3(box.pos.x,box.pos.y,box.pos.z));
 
 	const int min_x = int(Math::floor(box_pos.x));
 	const int min_y = int(Math::floor(box_pos.y));
@@ -253,13 +253,13 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 
 	
 
-	const Vector3 expanded_box_end = box_pos + Vector3(box.size.x,box.size.y,box.size.z);
+	const Vector3 expanded_box_end = box_pos + Vector3(64,64,64);
 	const int max_x = int(Math::ceil(expanded_box_end.x));
 	const int max_y = int(Math::ceil(expanded_box_end.y));
 	const int max_z = int(Math::ceil(expanded_box_end.z));
 
 	Vector3i i(min_x, min_y, min_z);
-
+	Vector3 last_point = Vector3(min_x, min_y, min_z);
 	
 
 	Ref<VoxelMesherBlocky> mesher_blocky;
@@ -273,9 +273,8 @@ Vector<Vector3> VoxelBoxMover::get_points_to_destination(Box3i box, VoxelTerrain
 		for (i.z = min_z; i.z < max_z; ++i.z) {
 			for (i.y = min_y; i.y < max_y; ++i.y) {
 				for (i.x = min_x; i.x < max_x; ++i.x) {
-			
-					Vector3 current_point = i.to_vec3();
-					potential_points.push_back ( to_world.basis.xform(current_point));
+					
+					potential_points.push_back ( i.to_vec3());
 					
 				}
 			}
