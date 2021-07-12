@@ -15,6 +15,7 @@ Videos
 
 You can watch some of the video tutorials available (they might come out of date!):
 
+- [Voxel Terrain Tutorial with Godot's voxel tools module using the Smooth Transvoxel method (by Aknakos)](https://www.youtube.com/watch?v=YDHkTJ6Na9U) (17 Jun 2021)
 - [How To Make Voxel Terrains In Godot (by Tokisan Games)](https://www.youtube.com/watch?v=zfzmcbR1H_0) (4 Nov 2019)
 - [Godot Voxel Tools (by Gamesfromscratch)](https://www.youtube.com/watch?v=WxZK_Yg5kU0) (25 Jul 2020)
 
@@ -79,7 +80,7 @@ It's easy to think a project needs voxels, but they are less needed than it soun
 
 - "I need a procedurally generated world": if you don't need overhangs you can go with a heightmap approach. Heightmaps are faster and easier to work with.
 
-- "I need destructible models": voxels in this module are "blobby" or "blocky", they can't represent every possible shape. If you need something precise, you could try more specialized alternatives like CSG nodes or precomputed Voronoi destruction.
+- "I need destructible models": voxels in this module are "blobby" or "blocky", they can't represent every possible shape. If you need something precise, you could try more specialized alternatives like CSG nodes or precomputed destruction.
 
 - "I need a terrain with overhangs and caves": do you need it to be editable by players? If not, then you can model the terrain in any 3D modeller and optimize it up-front. You can mix heightmaps + 3D models. You might rely on voxels to make the authoring process easier, but in the exported game you will only need the meshes and static colliders.
 
