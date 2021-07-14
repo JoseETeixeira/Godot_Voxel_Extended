@@ -970,6 +970,32 @@ bool VoxelLodTerrain::check_block_mesh_updated(VoxelMeshBlock *block) {
 	return true;
 }
 
+void VoxelLodTerrain::emit_data_block_loaded(const VoxelDataBlock *block) {
+	const Variant vpos = block->position.to_vec3();
+	// Not sure about exposing buffers directly... some stuff on them is useful to obtain directly,
+	// but also it allows scripters to mess with voxels in a way they should not.
+	// Example: modifying voxels without locking them first, while another thread may be reading them at the same time.
+	// The same thing could happen the other way around (threaded task modifying voxels while you try to read them).
+	// It isn't planned to expose VoxelBuffer locks because there are too many of them,
+	// it may likely shift to another system in the future, and might even be changed to no longer inherit Reference.
+	// So unless this is absolutely necessary, buffers aren't exposed. Workaround: use VoxelTool
+	//const Variant vbuffer = block->voxels;
+	//const Variant *args[2] = { &vpos, &vbuffer };
+	const Variant *args[1] = { &vpos };
+	emit_signal(VoxelStringNames::get_singleton()->block_loaded, args, 1);
+}
+
+Vector3 VoxelLodTerrain::_b_data_block_to_voxel(Vector3 pos,int lod_index) const {
+	Lod lod = _lods[lod_index];
+	return Vector3i(lod.data_map.block_to_voxel(pos)).to_vec3();
+}
+
+Vector3 VoxelLodTerrain::_b_voxel_to_data_block(Vector3 pos,int lod_index) const {
+	Lod lod = _lods[lod_index];
+	return Vector3i(lod.data_map.voxel_to_block(pos)).to_vec3();
+}
+
+
 void VoxelLodTerrain::send_block_data_requests() {
 	// Blocks to load
 	const bool request_instances = _instancer != nullptr;
@@ -1486,6 +1512,7 @@ void VoxelLodTerrain::_process(float delta) {
 				VoxelServer::BlockDataOutput &wob = _reception_buffers.data_output[reception_index];
 				_instancer->on_data_block_loaded(wob.position, wob.lod, std::move(wob.instances));
 			}
+			emit_data_block_loaded(block);
 		}
 
 		_reception_buffers.data_output.clear();
@@ -1881,19 +1908,14 @@ void VoxelLodTerrain::unload_data_block(Vector3i block_pos, int lod_index) {
 	VOXEL_PROFILE_SCOPE();
 	ERR_FAIL_COND(lod_index >= get_lod_count());
 
+
 	Lod &lod = _lods[lod_index];
 
 	lod.data_map.remove_block(block_pos, BeforeUnloadDataAction{ _blocks_to_save, _stream.is_valid() });
 
 	lod.loading_blocks.erase(block_pos);
 
-	// if (_instancer != nullptr) {
-	// 	_instancer->on_block_exit(block_pos, lod_index);
-	// }
-
-	// No need to remove things from blocks_pending_load,
-	// This vector is filled and cleared immediately in the main process.
-	// It is a member only to re-use its capacity memory over frames.
+	
 }
 
 void VoxelLodTerrain::unload_mesh_block(Vector3i block_pos, int lod_index) {
@@ -2555,7 +2577,8 @@ void VoxelLodTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("debug_get_mesh_block_count"), &VoxelLodTerrain::_b_debug_get_mesh_block_count);
 	ClassDB::bind_method(D_METHOD("debug_get_data_block_count"), &VoxelLodTerrain::_b_debug_get_data_block_count);
 	ClassDB::bind_method(D_METHOD("debug_dump_as_scene", "path"), &VoxelLodTerrain::_b_debug_dump_as_scene);
-
+	ClassDB::bind_method(D_METHOD("data_block_to_voxel", "block_pos","lod_index"), &VoxelLodTerrain::_b_data_block_to_voxel);
+	ClassDB::bind_method(D_METHOD("voxel_to_data_block", "block_pos","lod_index"), &VoxelLodTerrain::_b_voxel_to_data_block);
 	//ClassDB::bind_method(D_METHOD("_on_stream_params_changed"), &VoxelLodTerrain::_on_stream_params_changed);
 
 	BIND_ENUM_CONSTANT(PROCESS_MODE_IDLE);
@@ -2598,4 +2621,7 @@ void VoxelLodTerrain::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "run_stream_in_editor"),
 			"set_run_stream_in_editor", "is_stream_running_in_editor");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_block_size"), "set_mesh_block_size", "get_mesh_block_size");
+	// TODO Add back access to block, but with an API securing multithreaded access
+	ADD_SIGNAL(MethodInfo(VoxelStringNames::get_singleton()->block_loaded,
+			PropertyInfo(Variant::VECTOR3, "position")));
 }

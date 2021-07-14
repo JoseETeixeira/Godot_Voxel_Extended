@@ -213,6 +213,9 @@ private:
 	Error _b_debug_dump_as_scene(String fpath) const;
 	Dictionary _b_get_statistics() const;
 
+	void emit_data_block_loaded(const VoxelDataBlock *block);
+
+
 	struct OctreeItem {
 		LodOctree octree;
 	};
@@ -222,6 +225,8 @@ private:
 #endif
 
 private:
+	Vector3 _b_data_block_to_voxel(Vector3 pos, int lod_index) const;
+	Vector3 _b_voxel_to_data_block(Vector3 pos, int lod_index) const;
 	// This terrain type is a sparse grid of octrees.
 	// Indexed by a grid coordinate whose step is the size of the highest-LOD block.
 	// Not using a pointer because Map storage is stable.
