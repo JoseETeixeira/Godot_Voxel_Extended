@@ -214,6 +214,7 @@ private:
 	Dictionary _b_get_statistics() const;
 
 	void emit_data_block_loaded(const VoxelDataBlock *block);
+	void emit_data_block_unloaded(const VoxelDataBlock *block);
 
 
 	struct OctreeItem {

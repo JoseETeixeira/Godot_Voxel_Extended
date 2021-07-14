@@ -83,6 +83,7 @@ struct BeforeUnloadDataAction {
 	void operator()(VoxelDataBlock *block) {
 		// Save if modified
 		// TODO Don't ask for save if the stream doesn't support it!
+		emit_data_block_unloaded(block);
 		if (save && block->is_modified()) {
 			//print_line(String("Scheduling save for block {0}").format(varray(block->position.to_vec3())));
 			VoxelLodTerrain::BlockToSave b;
@@ -2623,5 +2624,7 @@ void VoxelLodTerrain::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "mesh_block_size"), "set_mesh_block_size", "get_mesh_block_size");
 	// TODO Add back access to block, but with an API securing multithreaded access
 	ADD_SIGNAL(MethodInfo(VoxelStringNames::get_singleton()->block_loaded,
+			PropertyInfo(Variant::VECTOR3, "position")));
+	ADD_SIGNAL(MethodInfo(VoxelStringNames::get_singleton()->block_unloaded,
 			PropertyInfo(Variant::VECTOR3, "position")));
 }
