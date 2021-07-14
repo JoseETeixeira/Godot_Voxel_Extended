@@ -10,6 +10,7 @@
 #include <scene/3d/mesh_instance.h>
 #include <scene/3d/physics_body.h>
 #include <scene/main/timer.h>
+#include <core/func_ref.h>
 
 VoxelToolLodTerrain::VoxelToolLodTerrain(VoxelLodTerrain *terrain, VoxelDataMap &map) :
 		_terrain(terrain), _map(&map) {
@@ -560,6 +561,45 @@ Array VoxelToolLodTerrain::separate_floating_chunks(AABB world_box, Node *parent
 			*this, int_world_box, parent_node, _terrain->get_global_transform(), mesher, materials);
 }
 
+void VoxelToolLodTerrain::for_each_voxel_metadata_in_area(AABB voxel_area, Ref<FuncRef> callback,int lod_index) {
+	ERR_FAIL_COND(_terrain == nullptr);
+	ERR_FAIL_COND(callback.is_null());
+
+	const Box3i voxel_box = Box3i(Vector3i(voxel_area.position), Vector3i(voxel_area.size));
+	ERR_FAIL_COND(!is_area_editable(voxel_box));
+
+	const Box3i data_block_box = voxel_box.downscaled(_terrain->get_data_block_size());
+
+	const VoxelDataMap &map = _terrain->get_data_map(lod_index);
+
+	data_block_box.for_each_cell([&map, &callback, voxel_box](Vector3i block_pos) {
+		const VoxelDataBlock *block = map.get_block(block_pos);
+
+		if (block == nullptr) {
+			return;
+		}
+
+		ERR_FAIL_COND(block->voxels.is_null());
+		const Vector3i block_origin = block_pos * map.get_block_size();
+		const Box3i rel_voxel_box(voxel_box.pos - block_origin, voxel_box.size);
+
+		block->voxels->for_each_voxel_metadata_in_area(rel_voxel_box, [&callback, block_origin](Vector3i rel_pos, Variant meta) {
+			const Variant key = (rel_pos + block_origin).to_vec3();
+			const Variant *args[2] = { &key, &meta };
+			Variant::CallError err;
+			callback->call_func(args, 2, err);
+
+			ERR_FAIL_COND_MSG(err.error != Variant::CallError::CALL_OK,
+					String("FuncRef call failed at {0}").format(varray(key)));
+
+			// TODO Can't provide detailed error because FuncRef doesn't give us access to the object
+			// ERR_FAIL_COND_MSG(err.error != Variant::CallError::CALL_OK, false,
+			// 		Variant::get_call_error_text(callback->get_object(), method_name, nullptr, 0, err));
+		});
+	});
+}
+
+
 void VoxelToolLodTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_raycast_binary_search_iterations", "iterations"),
 			&VoxelToolLodTerrain::set_raycast_binary_search_iterations);
@@ -569,4 +609,6 @@ void VoxelToolLodTerrain::_bind_methods() {
 			&VoxelToolLodTerrain::get_voxel_f_interpolated);
 	ClassDB::bind_method(D_METHOD("separate_floating_chunks", "box", "parent_node"),
 			&VoxelToolLodTerrain::separate_floating_chunks);
+	ClassDB::bind_method(D_METHOD("for_each_voxel_metadata_in_area", "voxel_area", "callback","lod_index"),
+			&VoxelToolLodTerrain::for_each_voxel_metadata_in_area);
 }

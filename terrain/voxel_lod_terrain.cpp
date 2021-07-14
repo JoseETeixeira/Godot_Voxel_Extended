@@ -83,7 +83,6 @@ struct BeforeUnloadDataAction {
 	void operator()(VoxelDataBlock *block) {
 		// Save if modified
 		// TODO Don't ask for save if the stream doesn't support it!
-		emit_data_block_unloaded(block);
 		if (save && block->is_modified()) {
 			//print_line(String("Scheduling save for block {0}").format(varray(block->position.to_vec3())));
 			VoxelLodTerrain::BlockToSave b;
@@ -986,6 +985,9 @@ void VoxelLodTerrain::emit_data_block_loaded(const VoxelDataBlock *block) {
 	emit_signal(VoxelStringNames::get_singleton()->block_loaded, args, 1);
 }
 
+
+
+
 Vector3 VoxelLodTerrain::_b_data_block_to_voxel(Vector3 pos,int lod_index) const {
 	Lod lod = _lods[lod_index];
 	return Vector3i(lod.data_map.block_to_voxel(pos)).to_vec3();
@@ -1092,6 +1094,7 @@ void VoxelLodTerrain::_process(float delta) {
 				VOXEL_PROFILE_SCOPE();
 				prev_box.difference(new_box, [this, lod_index](Box3i out_of_range_box) {
 					out_of_range_box.for_each_cell([=](Vector3i pos) {
+
 						//print_line(String("Immerge {0}").format(varray(pos.to_vec3())));
 						unload_data_block(pos, lod_index);
 					});
@@ -1912,11 +1915,32 @@ void VoxelLodTerrain::unload_data_block(Vector3i block_pos, int lod_index) {
 
 	Lod &lod = _lods[lod_index];
 
+	const Variant vpos = block_pos.to_vec3();
+	// Not sure about exposing buffers directly... some stuff on them is useful to obtain directly,
+	// but also it allows scripters to mess with voxels in a way they should not.
+	// Example: modifying voxels without locking them first, while another thread may be reading them at the same time.
+	// The same thing could happen the other way around (threaded task modifying voxels while you try to read them).
+	// It isn't planned to expose VoxelBuffer locks because there are too many of them,
+	// it may likely shift to another system in the future, and might even be changed to no longer inherit Reference.
+	// So unless this is absolutely necessary, buffers aren't exposed. Workaround: use VoxelTool
+	//const Variant vbuffer = block->voxels;
+	//const Variant *args[2] = { &vpos, &vbuffer };
+	const Variant *args[1] = { &vpos }; 
+
+	emit_signal(VoxelStringNames::get_singleton()->block_unloaded, args, 1);
+
 	lod.data_map.remove_block(block_pos, BeforeUnloadDataAction{ _blocks_to_save, _stream.is_valid() });
 
 	lod.loading_blocks.erase(block_pos);
-
 	
+	
+	
+}
+
+VoxelDataMap VoxelLodTerrain::get_data_map(int lod_index){
+
+	VoxelDataMap &datamap = _lods[lod_index].data_map;
+	return datamap;
 }
 
 void VoxelLodTerrain::unload_mesh_block(Vector3i block_pos, int lod_index) {
@@ -1932,6 +1956,8 @@ void VoxelLodTerrain::unload_mesh_block(Vector3i block_pos, int lod_index) {
 	if (_instancer != nullptr) {
 		_instancer->on_mesh_block_exit(block_pos, lod_index);
 	}
+	
+
 
 	// Blocks in the update queue will be cancelled in _process,
 	// because it's too expensive to linear-search all blocks for each block

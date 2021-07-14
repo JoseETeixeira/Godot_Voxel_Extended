@@ -160,6 +160,8 @@ public:
 	Array get_mesh_block_surface(Vector3i block_pos, int lod_index) const;
 	Vector<Vector3i> get_meshed_block_positions_at_lod(int lod_index) const;
 
+	VoxelDataMap get_data_map(int lod_index);
+
 protected:
 	static void _bind_methods();
 
@@ -214,7 +216,7 @@ private:
 	Dictionary _b_get_statistics() const;
 
 	void emit_data_block_loaded(const VoxelDataBlock *block);
-	void emit_data_block_unloaded(const VoxelDataBlock *block);
+
 
 
 	struct OctreeItem {

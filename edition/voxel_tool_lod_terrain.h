@@ -5,6 +5,8 @@
 
 class VoxelLodTerrain;
 class VoxelDataMap;
+class FuncRef;
+
 
 class VoxelToolLodTerrain : public VoxelTool {
 	GDCLASS(VoxelToolLodTerrain, VoxelTool)
@@ -26,6 +28,7 @@ public:
 
 	float get_voxel_f_interpolated(Vector3 position) const;
 	Array separate_floating_chunks(AABB world_box, Node *parent_node);
+	void for_each_voxel_metadata_in_area(AABB voxel_area, Ref<FuncRef> callback,int lod_index);
 
 protected:
 	uint64_t _get_voxel(Vector3i pos) const override;
